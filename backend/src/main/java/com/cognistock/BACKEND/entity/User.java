@@ -2,11 +2,13 @@ package com.cognistock.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-
+import com.cognistock.backend.common.BaseEntity;
+import lombok.EqualsAndHashCode;
 @Entity
 @Table(name = "users")
 @Data
-public class User {
+@EqualsAndHashCode(callSuper = false)
+public class User extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,10 +20,10 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    private String role; // ADMIN, MANAGER, STAFF
+    private String role;
 
     @PrePersist
-    protected void onCreate() {
+    protected void setDefaultRole() {
         if (this.role == null) {
             this.role = "STAFF";
         }

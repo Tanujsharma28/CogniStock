@@ -58,7 +58,10 @@ public class NLBIService {
         sb.append("\n=== ORDERS ===\n");
         sb.append("Total orders: ").append(orders.size()).append("\n");
         Map<String, Long> ordersByStatus = orders.stream()
-            .collect(Collectors.groupingBy(Order::getStatus, Collectors.counting()));
+    .collect(Collectors.groupingBy(
+        o -> o.getStatus() != null ? o.getStatus().name() : "UNKNOWN",
+        Collectors.counting()
+    ));
         ordersByStatus.forEach((status, count) ->
             sb.append(status).append(": ").append(count).append(" orders\n"));
 

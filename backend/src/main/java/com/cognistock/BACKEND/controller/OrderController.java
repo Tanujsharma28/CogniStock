@@ -1,31 +1,55 @@
 package com.cognistock.backend.controller;
+import com.cognistock.backend.entity.Order;
+import com.cognistock.backend.common.ApiConstants;
+import com.cognistock.backend.common.ApiResponse;
+import com.cognistock.backend.dto.request.OrderRequest;
+import com.cognistock.backend.dto.response.OrderResponse;
+import com.cognistock.backend.service.OrderService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.cognistock.backend.entity.Order;
-import com.cognistock.backend.repository.OrderRepository;
-
 @RestController
 @RequestMapping("/api/orders")
+@RequiredArgsConstructor
 public class OrderController {
 
-    @Autowired
-    private OrderRepository orderRepository;
+    private final OrderService orderService;
 
     @GetMapping
-    public List<Order> getAllOrders() {
-        return orderRepository.findAll();
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'STAFF')")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getAll() {
+        return ResponseEntity.ok(
+            ApiResponse.success(orderService.getAllOrders(), ApiConstants.FETCHED));
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'STAFF')")
+    public ResponseEntity<ApiResponse<OrderResponse>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(
+            ApiResponse.success(orderService.getById(id), ApiConstants.FETCHED));
     }
 
     @PostMapping
-    public Order createOrder(@RequestBody Order order) {
-        return orderRepository.save(order);
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<ApiResponse<OrderResponse>> create(
+            @Valid @RequestBody OrderRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            ApiResponse.success(orderService.create(request), ApiConstants.CREATED));
     }
+
+    @PatchMapping("/{id}/status")
+@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+public ResponseEntity<ApiResponse<OrderResponse>> updateStatus(
+        @PathVariable Long id, @RequestParam String status) {
+    return ResponseEntity.ok(
+        ApiResponse.success(
+            orderService.updateStatus(id, Order.OrderStatus.valueOf(status.toUpperCase())),
+            ApiConstants.UPDATED));
+}
 }

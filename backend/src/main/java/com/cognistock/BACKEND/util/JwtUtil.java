@@ -49,4 +49,10 @@ public class JwtUtil {
             return false;
         }
     }
+
+    public String extractRole(String token) {
+    return Jwts.parser().verifyWith(getKey()).build()
+            .parseSignedClaims(token).getPayload()
+            .get("role", String.class);
+}
 }

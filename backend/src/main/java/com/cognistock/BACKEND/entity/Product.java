@@ -7,11 +7,14 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import com.cognistock.backend.common.BaseEntity;
 
 @Entity
 @Table(name = "products")
 @Data
-public class Product {
+@EqualsAndHashCode(callSuper = false)
+public class Product extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

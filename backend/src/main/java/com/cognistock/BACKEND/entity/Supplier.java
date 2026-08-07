@@ -1,17 +1,15 @@
 package com.cognistock.backend.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Data;
+import com.cognistock.backend.common.BaseEntity;
+import lombok.EqualsAndHashCode;
 
 @Entity
 @Table(name = "suppliers")
 @Data
-public class Supplier {
+@EqualsAndHashCode(callSuper = false)
+public class Supplier extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,6 +17,15 @@ public class Supplier {
 
     @Column(nullable = false)
     private String name;
+
+    private String contactPerson;
+
+    @Column(unique = true)
+    private String email;
+
+    private String phone;
+
+    private String address;
 
     private Integer deliveryDays;
 
