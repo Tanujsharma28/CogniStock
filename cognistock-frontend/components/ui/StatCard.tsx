@@ -21,7 +21,10 @@ function useCountUp(target: number, animate: boolean, duration = 800) {
   const [val, setVal] = useState(0);
 
   useEffect(() => {
-    if (!animate || typeof target !== "number") return;
+    if (!animate || typeof target !== "number") {
+      setVal(target);
+      return;
+    }
     let start = 0;
     const steps    = duration / 16;
     const increment = target / steps;

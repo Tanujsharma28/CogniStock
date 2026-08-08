@@ -2,68 +2,94 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { isLoggedIn } from "../../lib/auth";
 import Sidebar from "../../components/Sidebar";
-import MetricCard from "../../components/MetricCard";
+import StatCard from "../../components/ui/StatCard";
+import SectionHeader from "../../components/ui/SectionHeader";
 import ForecastChart from "../../components/ForecastChart";
 import AlertsList from "../../components/AlertsList";
 import AISuggestionCard from "../../components/AISuggestionCard";
 import api from "../../lib/api";
+import { Package, AlertTriangle, ShoppingCart, TrendingUp } from "lucide-react";
 
 interface Summary {
-  totalStockValue: number;
+  totalProducts: number;
   lowStockCount: number;
+  criticalStockCount: number;
+  healthyStockCount: number;
   totalOrders: number;
-  lowStockProductId: number;
-  aiApprovalRate: number;
+  totalSuppliers: number;
+  revenue30Days: number;
+  revenue7Days: number;
+  deadStockCount: number;
 }
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.push("/login");
-      return;
-    }
-    setAuthChecked(true);
-    api.get("/dashboard/summary").then((res) => setSummary(res.data)).catch(() => {});
+    if (!isLoggedIn()) { router.push("/login"); return; }
+    api.get("/dashboard/summary")
+      .then((res) => {
+        // Backend wraps in ApiResponse — data field ke andar actual payload hai
+        const payload = res.data?.data ?? res.data;
+        setSummary(payload);
+      })
+      .catch(() => {});
   }, [router]);
 
   return (
-    <div className="flex min-h-screen bg-[#05070d]">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex-1 p-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+      <main className="flex-1 overflow-y-auto bg-[#F7F8FA]">
+        <div className="max-w-7xl mx-auto px-6 py-6">
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="relative z-10"
-        >
-          <h1 className="text-white text-lg font-medium mb-1">Dashboard</h1>
-          <p className="text-gray-500 text-sm mb-4">Live overview of your inventory operations</p>
+          <SectionHeader
+            title="Dashboard"
+            description="Live overview of your inventory operations"
+          />
 
-          <div className="grid grid-cols-4 gap-4 mb-4">
-            <MetricCard label="Total stock value" numericValue={summary ? summary.totalStockValue / 100000 : 0} suffix="L" delay={0} />
-            <MetricCard label="Low stock items" numericValue={summary ? summary.lowStockCount : 0} valueColor="text-red-400" delay={0.1} />
-            <MetricCard label="Total orders" numericValue={summary ? summary.totalOrders : 0} delay={0.2} />
-            <MetricCard label="AI Approval Rate" numericValue={summary ? (summary.aiApprovalRate ?? 0) : 0} suffix="%" valueColor="text-emerald-400" delay={0.3} />
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <StatCard
+              label="Total Products"
+              value={summary?.totalProducts ?? 0}
+              icon={<Package size={16} />}
+              delay={0}
+            />
+            <StatCard
+              label="Low Stock Items"
+              value={summary?.lowStockCount ?? 0}
+              icon={<AlertTriangle size={16} />}
+              valueColor="text-[#DC2626]"
+              delay={0.05}
+            />
+            <StatCard
+              label="Total Orders"
+              value={summary?.totalOrders ?? 0}
+              icon={<ShoppingCart size={16} />}
+              delay={0.1}
+            />
+            <StatCard
+              label="Revenue (30 Days)"
+              value={summary ? summary.revenue30Days / 100000 : 0}
+              prefix="₹"
+              suffix="L"
+              icon={<TrendingUp size={16} />}
+              valueColor="text-[#059669]"
+              delay={0.15}
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <ForecastChart productId={summary?.lowStockProductId ?? 1} />
-            <AISuggestionCard productId={summary?.lowStockProductId ?? 1} />
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <ForecastChart productId={1} />
+            <AISuggestionCard productId={summary?.lowStockCount ? 1 : 1} />
           </div>
 
           <AlertsList />
-        </motion.div>
-      </div>
+
+        </div>
+      </main>
     </div>
   );
 }

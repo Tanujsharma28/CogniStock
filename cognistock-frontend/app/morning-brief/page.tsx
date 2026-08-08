@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { isLoggedIn } from "../../lib/auth";
 import Sidebar from "../../components/Sidebar";
+import SectionHeader from "../../components/ui/SectionHeader";
+import Card from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
+import Button from "../../components/ui/Button";
 import api from "../../lib/api";
 import {
-  Sun, AlertTriangle, Sparkles, RefreshCw,
-  TrendingUp, Package, CheckCircle2, ArrowLeft,
-  Zap, Shield, Target
+  Sun, AlertTriangle, TrendingUp,
+  Shield, Target, Zap, RefreshCw
 } from "lucide-react";
 
 interface Brief {
@@ -28,7 +30,6 @@ interface Brief {
     orders: number;
     aiAccuracy: number;
     suppliers: number;
-    overall: number;
   };
   criticalAlerts: {
     product: string;
@@ -49,21 +50,35 @@ interface GeminiInsights {
 }
 
 function HealthBar({ label, value }: { label: string; value: number }) {
-  const color = value >= 80 ? "bg-emerald-500" : value >= 60 ? "bg-amber-500" : "bg-red-500";
+  const color =
+    value >= 80 ? "bg-[#10B981]" :
+    value >= 60 ? "bg-[#F59E0B]" :
+    "bg-[#EF4444]";
+  const textColor =
+    value >= 80 ? "text-[#059669]" :
+    value >= 60 ? "text-[#D97706]" :
+    "text-[#DC2626]";
+
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-gray-400 w-24 shrink-0">{label}</span>
-      <div className="flex-1 bg-white/[0.06] rounded-full h-1.5">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${value}%` }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className={`h-1.5 rounded-full ${color}`}
+      <span className="text-xs text-[#6B7280] w-24 shrink-0">{label}</span>
+      <div className="flex-1 bg-[#F3F4F6] rounded-full h-1.5">
+        <div
+          className={`h-1.5 rounded-full ${color} transition-all duration-700`}
+          style={{ width: `${value}%` }}
         />
       </div>
-      <span className="text-xs font-medium text-white w-8 text-right">{value}</span>
+      <span className={`text-xs font-semibold w-8 text-right ${textColor}`}>
+        {value}
+      </span>
     </div>
   );
+}
+
+function healthBadgeVariant(score: number): "success" | "warning" | "danger" {
+  if (score >= 80) return "success";
+  if (score >= 60) return "warning";
+  return "danger";
 }
 
 export default function MorningBriefPage() {
@@ -75,22 +90,25 @@ export default function MorningBriefPage() {
   const load = () => {
     setLoading(true);
     setInsights(null);
-    api.get("/morning-brief").then((res) => {
-      setBrief(res.data);
-      try {
-        const raw = res.data.aiInsights;
-        const cleaned = raw.replace(/```json|```/g, "").trim();
-        setInsights(JSON.parse(cleaned));
-      } catch {
-        setInsights({
-          topOpportunity: "Review pending AI decisions to optimize operations.",
-          keyRisks: ["Low stock on critical items", "Pending orders need attention"],
-          actionPlan: ["Review low stock alerts", "Approve pending AI decisions", "Check supplier status"],
-          businessInsight: "Inventory optimization can improve margins significantly."
-        });
-      }
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    api.get("/morning-brief")
+      .then((res) => {
+        const payload = res.data?.data ?? res.data;
+        setBrief(payload);
+        try {
+          const raw = payload.aiInsights;
+          const cleaned = raw.replace(/```json|```/g, "").trim();
+          setInsights(JSON.parse(cleaned));
+        } catch {
+          setInsights({
+            topOpportunity: "Review pending AI decisions to optimize operations.",
+            keyRisks: ["Low stock on critical items", "Pending orders need attention"],
+            actionPlan: ["Review low stock alerts", "Approve pending AI decisions", "Check supplier status"],
+            businessInsight: "Inventory optimization can improve margins significantly.",
+          });
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -98,198 +116,183 @@ export default function MorningBriefPage() {
     load();
   }, [router]);
 
-  const healthColor = !brief ? "text-gray-400"
-    : brief.overallHealth >= 80 ? "text-emerald-400"
-    : brief.overallHealth >= 60 ? "text-amber-400"
-    : "text-red-400";
-
-  const severityIcon = (s: string) =>
-    s === "CRITICAL" ? "🔴" : s === "HIGH" ? "🟡" : "🟢";
-
   return (
-    <div className="flex min-h-screen bg-[#05070d]">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex-1 p-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      <main className="flex-1 overflow-y-auto bg-[#F7F8FA]">
+        <div className="max-w-5xl mx-auto px-6 py-6">
 
-        <div className="relative z-10 max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.push("/dashboard")}
-                className="text-gray-500 hover:text-gray-300 transition-colors"
+          <SectionHeader
+            title="Morning Brief"
+            description={brief ? `${brief.briefId} · Generated ${brief.generatedAt}` : "Executive supply chain summary"}
+            action={
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<RefreshCw size={13} className={loading ? "animate-spin" : ""} />}
+                onClick={load}
+                loading={loading}
               >
-                <ArrowLeft size={18} />
-              </button>
-              <div>
-                <h1 className="text-white font-medium flex items-center gap-2">
-                  <Sun size={18} className="text-amber-400" />
-                  CEO Morning Brief
-                </h1>
-                {brief && (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {brief.briefId} · Generated {brief.generatedAt}
-                  </p>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={load}
-              disabled={loading}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-white/[0.05] border border-white/[0.08] text-gray-400 rounded-lg hover:text-white transition-colors disabled:opacity-40"
-            >
-              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-              Regenerate
-            </button>
-          </div>
+                Regenerate
+              </Button>
+            }
+          />
 
           {loading && (
-            <div className="flex flex-col items-center justify-center py-24 text-gray-600">
-              <Sparkles size={32} className="mb-3 animate-pulse text-purple-500" />
-              <p className="text-sm">Generating your executive brief...</p>
-            </div>
+            <Card>
+              <div className="flex items-center justify-center gap-2 py-12">
+                <Sun size={18} className="text-[#F59E0B] animate-pulse" />
+                <p className="text-sm text-[#9CA3AF]">Generating executive brief...</p>
+              </div>
+            </Card>
           )}
 
           {!loading && brief && (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="flex flex-col gap-4">
 
-              {/* Section 1 — Health Score */}
-              <div className="col-span-1 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5 flex flex-col items-center justify-center">
-                <span className={`text-5xl font-bold ${healthColor}`}>
-                  {brief.overallHealth}
-                </span>
-                <span className="text-gray-400 text-sm mt-1">Business Health</span>
-                <span className="text-xs text-gray-600 mt-0.5">out of 100</span>
-              </div>
+              {/* Row 1 — Health Score + Snapshot */}
+              <div className="grid grid-cols-3 gap-4">
 
-              {/* Section 2 — Snapshot */}
-              <div className="col-span-2 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5">
-                <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider">Today's Snapshot</p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <p className="text-white font-medium text-lg">
-                      ₹{(brief.snapshot.inventoryValue / 100000).toFixed(1)}L
-                    </p>
-                    <p className="text-xs text-gray-500">Inventory Value</p>
-                  </div>
-                  <div>
-                    <p className="text-white font-medium text-lg">{brief.snapshot.totalOrders}</p>
-                    <p className="text-xs text-gray-500">Total Orders</p>
-                  </div>
-                  <div>
-                    <p className="text-amber-400 font-medium text-lg">{brief.snapshot.pendingOrders}</p>
-                    <p className="text-xs text-gray-500">Pending Orders</p>
-                  </div>
-                  <div>
-                    <p className="text-red-400 font-medium text-lg">{brief.snapshot.lowStockCount}</p>
-                    <p className="text-xs text-gray-500">Low Stock Items</p>
-                  </div>
-                  <div>
-                    <p className="text-purple-400 font-medium text-lg">{brief.pendingAIDecisions}</p>
-                    <p className="text-xs text-gray-500">AI Decisions Pending</p>
-                  </div>
-                  <div>
-                    <p className="text-blue-400 font-medium text-lg">{brief.snapshot.totalProducts}</p>
-                    <p className="text-xs text-gray-500">Total Products</p>
-                  </div>
-                </div>
-              </div>
+                {/* Health Score */}
+                <Card padding="md" className="flex flex-col items-center justify-center text-center">
+                  <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-3">
+                    Business Health
+                  </p>
+                  <p className={`text-5xl font-bold mb-2 ${
+                    brief.overallHealth >= 80 ? "text-[#059669]" :
+                    brief.overallHealth >= 60 ? "text-[#D97706]" :
+                    "text-[#DC2626]"
+                  }`}>
+                    {brief.overallHealth}
+                  </p>
+                  <Badge variant={healthBadgeVariant(brief.overallHealth)}>
+                    {brief.overallHealth >= 80 ? "Healthy" :
+                     brief.overallHealth >= 60 ? "At Risk" : "Critical"}
+                  </Badge>
+                </Card>
 
-              {/* Section 3 — Health Scores */}
-              <div className="col-span-1 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5">
-                <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider">Health Breakdown</p>
-                <div className="flex flex-col gap-3">
-                  <HealthBar label="Inventory" value={brief.healthScores.inventory} />
-                  <HealthBar label="Orders" value={brief.healthScores.orders} />
-                  <HealthBar label="AI Accuracy" value={brief.healthScores.aiAccuracy} />
-                  <HealthBar label="Suppliers" value={brief.healthScores.suppliers} />
-                </div>
-              </div>
-
-              {/* Section 4 — Critical Alerts */}
-              <div className="col-span-2 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5">
-                <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertTriangle size={12} /> Critical Alerts
-                </p>
-                {brief.criticalAlerts.length === 0 ? (
-                  <p className="text-sm text-gray-600">No critical alerts — all good!</p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {brief.criticalAlerts.map((alert, i) => (
-                      <div key={i} className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <span>{severityIcon(alert.severity)}</span>
-                          <span className="text-white">{alert.product}</span>
-                        </span>
-                        <span className="text-gray-400 text-xs">
-                          {alert.stock} units · {alert.daysLeft} days left
-                        </span>
+                {/* Snapshot */}
+                <Card padding="md" className="col-span-2">
+                  <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-4">
+                    Today&apos;s Snapshot
+                  </p>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { label: "Inventory Value", value: `₹${(brief.snapshot.inventoryValue / 100000).toFixed(1)}L`, color: "text-[#111827]" },
+                      { label: "Total Orders", value: brief.snapshot.totalOrders, color: "text-[#111827]" },
+                      { label: "Pending Orders", value: brief.snapshot.pendingOrders, color: "text-[#D97706]" },
+                      { label: "Low Stock Items", value: brief.snapshot.lowStockCount, color: "text-[#DC2626]" },
+                      { label: "AI Decisions", value: brief.pendingAIDecisions, color: "text-[#2563EB]" },
+                      { label: "Total Products", value: brief.snapshot.totalProducts, color: "text-[#111827]" },
+                    ].map((item) => (
+                      <div key={item.label}>
+                        <p className={`text-xl font-semibold ${item.color}`}>{item.value}</p>
+                        <p className="text-xs text-[#9CA3AF] mt-0.5">{item.label}</p>
                       </div>
                     ))}
                   </div>
-                )}
+                </Card>
               </div>
 
-              {/* Section 5 — Top Opportunity */}
-              {insights && (
-                <div className="col-span-3 bg-gradient-to-br from-emerald-500/[0.08] to-blue-500/[0.08] border border-emerald-400/[0.15] rounded-2xl p-5">
-                  <p className="text-xs text-emerald-400 mb-2 uppercase tracking-wider flex items-center gap-1.5">
-                    <TrendingUp size={12} /> Top Opportunity
-                  </p>
-                  <p className="text-white text-sm">{insights.topOpportunity}</p>
-                </div>
-              )}
+              {/* Row 2 — Health Breakdown + Critical Alerts */}
+              <div className="grid grid-cols-3 gap-4">
 
-              {/* Section 6 — Key Risks */}
-              {insights && (
-                <div className="col-span-1 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5">
-                  <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider flex items-center gap-1.5">
-                    <Shield size={12} /> Key Risks
+                <Card padding="md">
+                  <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-4">
+                    Health Breakdown
                   </p>
-                  <ul className="flex flex-col gap-2">
-                    {insights.keyRisks.map((risk, i) => (
-                      <li key={i} className="text-xs text-gray-300 flex items-start gap-2">
-                        <span className="text-red-400 mt-0.5">•</span>
-                        {risk}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+                  <div className="flex flex-col gap-3">
+                    <HealthBar label="Inventory" value={brief.healthScores.inventory} />
+                    <HealthBar label="Orders" value={brief.healthScores.orders} />
+                    <HealthBar label="AI Accuracy" value={brief.healthScores.aiAccuracy} />
+                    <HealthBar label="Suppliers" value={brief.healthScores.suppliers} />
+                  </div>
+                </Card>
 
-              {/* Section 7 — Action Plan */}
-              {insights && (
-                <div className="col-span-1 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5">
-                  <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider flex items-center gap-1.5">
-                    <Target size={12} /> Today's Action Plan
+                <Card padding="md" className="col-span-2">
+                  <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-4 flex items-center gap-1.5">
+                    <AlertTriangle size={12} className="text-[#DC2626]" />
+                    Critical Alerts
                   </p>
-                  <ol className="flex flex-col gap-2">
-                    {insights.actionPlan.map((action, i) => (
-                      <li key={i} className="text-xs text-gray-300 flex items-start gap-2">
-                        <span className="text-purple-400 font-medium shrink-0">{i + 1}.</span>
-                        {action}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
+                  {brief.criticalAlerts.length === 0 ? (
+                    <p className="text-sm text-[#9CA3AF]">No critical alerts — all systems healthy.</p>
+                  ) : (
+                    <div className="divide-y divide-[#F3F4F6]">
+                      {brief.criticalAlerts.map((alert, i) => (
+                        <div key={i} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle size={13} className={
+                              alert.severity === "CRITICAL" ? "text-[#DC2626]" :
+                              alert.severity === "HIGH" ? "text-[#D97706]" : "text-[#F59E0B]"
+                            } />
+                            <span className="text-sm font-medium text-[#111827]">{alert.product}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-[#6B7280]">{alert.stock} units left</span>
+                            <Badge variant={alert.severity === "CRITICAL" ? "danger" : "warning"}>
+                              {alert.daysLeft}d remaining
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              </div>
 
-              {/* Section 8 — Business Insight */}
+              {/* Row 3 — AI Insights */}
               {insights && (
-                <div className="col-span-1 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5">
-                  <p className="text-xs text-gray-500 mb-3 uppercase tracking-wider flex items-center gap-1.5">
-                    <Zap size={12} /> Business Insight
-                  </p>
-                  <p className="text-xs text-gray-300 leading-relaxed">{insights.businessInsight}</p>
+                <div className="grid grid-cols-3 gap-4">
+
+                  <Card padding="md" className="col-span-3 border-l-4 border-l-[#2563EB]">
+                    <p className="text-xs font-semibold text-[#2563EB] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <TrendingUp size={12} /> Top Opportunity
+                    </p>
+                    <p className="text-sm text-[#111827]">{insights.topOpportunity}</p>
+                  </Card>
+
+                  <Card padding="md">
+                    <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                      <Shield size={12} /> Key Risks
+                    </p>
+                    <ul className="flex flex-col gap-2">
+                      {insights.keyRisks.map((risk, i) => (
+                        <li key={i} className="text-xs text-[#374151] flex items-start gap-2">
+                          <span className="text-[#DC2626] mt-0.5 shrink-0">•</span>
+                          {risk}
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+
+                  <Card padding="md">
+                    <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                      <Target size={12} /> Today&apos;s Action Plan
+                    </p>
+                    <ol className="flex flex-col gap-2">
+                      {insights.actionPlan.map((action, i) => (
+                        <li key={i} className="text-xs text-[#374151] flex items-start gap-2">
+                          <span className="text-[#2563EB] font-semibold shrink-0">{i + 1}.</span>
+                          {action}
+                        </li>
+                      ))}
+                    </ol>
+                  </Card>
+
+                  <Card padding="md">
+                    <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                      <Zap size={12} /> Business Insight
+                    </p>
+                    <p className="text-xs text-[#374151] leading-relaxed">{insights.businessInsight}</p>
+                  </Card>
+
                 </div>
               )}
 
             </div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

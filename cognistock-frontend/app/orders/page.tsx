@@ -2,28 +2,60 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { isLoggedIn } from "../../lib/auth";
 import Sidebar from "../../components/Sidebar";
+import SectionHeader from "../../components/ui/SectionHeader";
+import Badge from "../../components/ui/Badge";
+import EmptyState from "../../components/ui/EmptyState";
+import Card from "../../components/ui/Card";
 import api from "../../lib/api";
-import { Receipt, Sparkles } from "lucide-react";
+import { Receipt } from "lucide-react";
+
+interface OrderItem {
+  id: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
 
 interface Order {
   id: number;
-  product: { name: string; sku: string } | null;
-  supplier: { name: string } | null;
-  quantity: number;
-  status: string;
-  aiGenerated: boolean;
+  orderNumber: string;
+  status: "PENDING" | "APPROVED" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+  supplierName: string;
+  notes: string;
+  items: OrderItem[];
   createdAt: string;
 }
 
-const statusColors: Record<string, string> = {
-  PENDING: "bg-amber-500/15 text-amber-400 border-amber-500/20",
-  APPROVED: "bg-blue-500/15 text-blue-400 border-blue-500/20",
-  SHIPPED: "bg-purple-500/15 text-purple-400 border-purple-500/20",
-  DELIVERED: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
+type BadgeVariant = "warning" | "default" | "info" | "success" | "danger";
+
+const statusVariant: Record<string, BadgeVariant> = {
+  PENDING:   "warning",
+  APPROVED:  "default",
+  SHIPPED:   "info",
+  DELIVERED: "success",
+  CANCELLED: "danger",
 };
+
+function formatDate(dateStr: string) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+}
+
+function getItemsSummary(items: OrderItem[]) {
+  if (!items?.length) return "—";
+  if (items.length === 1) return items[0].productName;
+  return `${items[0].productName} +${items.length - 1} more`;
+}
+
+function getOrderTotal(items: OrderItem[]) {
+  if (!items?.length) return 0;
+  return items.reduce((sum, item) => sum + (item.unitPrice ?? 0) * (item.quantity ?? 0), 0);
+}
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -31,88 +63,91 @@ export default function OrdersPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.push("/login");
-      return;
-    }
-    api.get("/orders").then((res) => {
-      setOrders(res.data);
-      setLoading(false);
-    });
+    if (!isLoggedIn()) { router.push("/login"); return; }
+    api.get("/orders")
+      .then((res) => {
+        const payload = res.data?.data ?? res.data;
+        setOrders(Array.isArray(payload) ? payload : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [router]);
 
   return (
-    <div className="flex min-h-screen bg-[#05070d]">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex-1 p-6 relative overflow-hidden">
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      <main className="flex-1 overflow-y-auto bg-[#F7F8FA]">
+        <div className="max-w-7xl mx-auto px-6 py-6">
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="relative z-10"
-        >
-          <h1 className="text-white text-lg font-medium mb-1">Orders</h1>
-          <p className="text-gray-500 text-sm mb-6">{orders.length} purchase orders placed</p>
+          <SectionHeader
+            title="Orders"
+            description={`${orders.length} purchase orders`}
+          />
 
-          {loading && <p className="text-sm text-gray-600">Loading orders...</p>}
+          {loading && (
+            <Card>
+              <p className="text-sm text-[#9CA3AF] py-8 text-center">Loading orders...</p>
+            </Card>
+          )}
 
-          {!loading && orders.length > 0 && (
-            <div className="bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] rounded-2xl overflow-hidden">
+          {!loading && (
+            <Card padding="none">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/[0.06] text-left">
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">Order ID</th>
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">Product</th>
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">Supplier</th>
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">Qty</th>
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">Source</th>
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">Status</th>
+                  <tr className="border-b border-[#F3F4F6] bg-[#F9FAFB]">
+                    {["Order #", "Supplier", "Items", "Total Value", "Date", "Status"].map((h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-[11px] font-semibold text-[#6B7280] uppercase tracking-wide"
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody>
-                  {orders.map((o, i) => (
-                    <motion.tr
-                      key={o.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors"
-                    >
-                      <td className="p-4 text-gray-400 font-mono text-xs">#{o.id}</td>
-                      <td className="p-4 text-white">{o.product?.name ?? "—"}</td>
-                      <td className="p-4 text-gray-300">{o.supplier?.name ?? "—"}</td>
-                      <td className="p-4 text-gray-300">{o.quantity}</td>
-                      <td className="p-4">
-                        {o.aiGenerated ? (
-                          <span className="flex items-center gap-1 text-xs text-purple-400">
-                            <Sparkles size={12} /> AI generated
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-500">Manual</span>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-md border ${statusColors[o.status] ?? statusColors.PENDING}`}>
-                          {o.status}
-                        </span>
-                      </td>
-                    </motion.tr>
-                  ))}
+                <tbody className="divide-y divide-[#F3F4F6]">
+                  {orders.map((o) => {
+                    const total = getOrderTotal(o.items);
+                    return (
+                      <tr key={o.id} className="hover:bg-[#F9FAFB] transition-colors duration-100">
+                        <td className="px-4 py-3 font-mono text-xs text-[#6B7280]">
+                          {o.orderNumber ?? `#${o.id}`}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-[#111827]">
+                          {o.supplierName ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-[#374151]">
+                          {getItemsSummary(o.items)}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-[#111827]">
+                          {total > 0 ? `₹${total.toLocaleString("en-IN")}` : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-[#6B7280]">
+                          {formatDate(o.createdAt)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={statusVariant[o.status] ?? "muted"}>
+                            {o.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
-            </div>
+
+              {orders.length === 0 && (
+                <EmptyState
+                  icon={<Receipt size={18} />}
+                  title="No orders yet"
+                  description="Generate an AI purchase suggestion from the Dashboard to create your first order."
+                />
+              )}
+            </Card>
           )}
 
-          {!loading && orders.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-600 bg-white/[0.02] rounded-2xl border border-white/[0.06]">
-              <Receipt size={32} className="mb-2 opacity-40" />
-              <p className="text-sm">No orders yet. Generate an AI purchase suggestion to create one.</p>
-            </div>
-          )}
-        </motion.div>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

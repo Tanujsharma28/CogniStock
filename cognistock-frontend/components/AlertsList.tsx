@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import api from "../lib/api";
+import Card from "./ui/Card";
+import Badge from "./ui/Badge";
+import EmptyState from "./ui/EmptyState";
+import { CheckCircle, AlertTriangle } from "lucide-react";
 
 interface Product {
   id: number;
@@ -20,54 +23,54 @@ export default function AlertsList() {
     api
       .get("/products")
       .then((res) => {
-        const lowStock = res.data.filter(
-          (p: Product) => p.stockQuantity <= p.reorderThreshold
-        );
-        setAlerts(lowStock);
+        const products = Array.isArray(res.data) ? res.data : [];
+        setAlerts(products.filter((p: Product) => p.stockQuantity <= p.reorderThreshold));
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
 
-  const getLevel = (product: Product) => {
-    const ratio = product.stockQuantity / product.reorderThreshold;
-    return ratio <= 0.5 ? "danger" : "warning";
-  };
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.35 }}
-      className="bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-5 mt-4 hover:border-white/[0.15] transition-all duration-300"
-    >
-      <p className="text-sm text-gray-400 mb-3">Low stock alerts</p>
+    <Card padding="md">
+      <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-4">
+        Low Stock Alerts
+      </p>
 
-      {loading && <p className="text-sm text-gray-600">Loading...</p>}
-      {!loading && alerts.length === 0 && (
-        <p className="text-sm text-gray-600">All products are sufficiently stocked — no alerts.</p>
+      {loading && (
+        <p className="text-sm text-[#9CA3AF]">Loading...</p>
       )}
 
-      <div className="flex flex-col gap-2">
-        {alerts.map((item, i) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 + i * 0.05 }}
-            className="flex justify-between items-center text-sm border-b border-white/[0.05] last:border-0 pb-2.5 last:pb-0"
-          >
-            <span className="text-gray-300">{item.sku} · {item.name}</span>
-            <span
-              className={`text-xs font-medium px-2.5 py-1 rounded-md ${
-                getLevel(item) === "danger" ? "bg-red-500/90 text-white" : "bg-amber-500/90 text-white"
-              }`}
-            >
-              {item.stockQuantity} units left
-            </span>
-          </motion.div>
-        ))}
-      </div>
-    </motion.div>
+      {!loading && alerts.length === 0 && (
+        <EmptyState
+          icon={<CheckCircle size={18} />}
+          title="All products sufficiently stocked"
+          description="No low stock alerts at this time."
+        />
+      )}
+
+      {!loading && alerts.length > 0 && (
+        <div className="divide-y divide-[#F3F4F6]">
+          {alerts.map((item) => {
+            const isCritical = item.stockQuantity / item.reorderThreshold <= 0.5;
+            return (
+              <div key={item.id} className="flex justify-between items-center py-2.5 first:pt-0 last:pb-0">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle
+                    size={13}
+                    className={isCritical ? "text-[#DC2626]" : "text-[#D97706]"}
+                  />
+                  <span className="text-sm text-[#111827]">
+                    {item.sku} · {item.name}
+                  </span>
+                </div>
+                <Badge variant={isCritical ? "danger" : "warning"}>
+                  {item.stockQuantity} units left
+                </Badge>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
   );
 }

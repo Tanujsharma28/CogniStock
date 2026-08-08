@@ -2,18 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { isLoggedIn } from "../../lib/auth";
 import Sidebar from "../../components/Sidebar";
+import SectionHeader from "../../components/ui/SectionHeader";
+import Badge from "../../components/ui/Badge";
+import EmptyState from "../../components/ui/EmptyState";
+import Card from "../../components/ui/Card";
 import api from "../../lib/api";
-import { Truck, Star, Clock, IndianRupee } from "lucide-react";
+import { Truck } from "lucide-react";
 
 interface Supplier {
   id: number;
   name: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
   deliveryDays: number;
   pricePerUnit: number;
   reliabilityScore: number;
+}
+
+function getReliabilityVariant(score: number): "success" | "warning" | "danger" {
+  if (score >= 4) return "success";
+  if (score >= 2.5) return "warning";
+  return "danger";
+}
+
+function getReliabilityLabel(score: number): string {
+  if (score >= 4) return "Reliable";
+  if (score >= 2.5) return "Average";
+  return "Unreliable";
 }
 
 export default function SuppliersPage() {
@@ -23,94 +41,110 @@ export default function SuppliersPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.push("/login");
-      return;
-    }
-    api
-      .get("/suppliers")
+    if (!isLoggedIn()) { router.push("/login"); return; }
+    api.get("/suppliers")
       .then((res) => {
-        setSuppliers(res.data);
+        const payload = res.data?.data ?? res.data;
+        setSuppliers(Array.isArray(payload) ? payload : []);
         setLoading(false);
       })
-      .catch(() => {
-        setError("Unable to load suppliers.");
-        setLoading(false);
-      });
+      .catch(() => { setError("Unable to load suppliers."); setLoading(false); });
   }, [router]);
 
   return (
-    <div className="flex min-h-screen bg-[#05070d]">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex-1 p-6 relative overflow-hidden">
-        <div className="absolute top-0 left-1/3 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+      <main className="flex-1 overflow-y-auto bg-[#F7F8FA]">
+        <div className="max-w-7xl mx-auto px-6 py-6">
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="relative z-10"
-        >
-          <h1 className="text-white text-lg font-medium mb-1">Suppliers</h1>
-          <p className="text-gray-500 text-sm mb-6">{suppliers.length} suppliers in your network</p>
+          <SectionHeader
+            title="Suppliers"
+            description={`${suppliers.length} suppliers in your network`}
+          />
 
-          {loading && <p className="text-sm text-gray-600">Loading suppliers...</p>}
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {loading && (
+            <Card>
+              <p className="text-sm text-[#9CA3AF] py-8 text-center">Loading suppliers...</p>
+            </Card>
+          )}
+
+          {error && (
+            <Card>
+              <p className="text-sm text-[#DC2626] py-4 text-center">{error}</p>
+            </Card>
+          )}
 
           {!loading && !error && (
-            <div className="grid grid-cols-3 gap-4">
-              {suppliers.map((s, i) => (
-                <motion.div
-                  key={s.id}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: i * 0.08 }}
-                  whileHover={{ y: -3 }}
-                  className="bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] rounded-2xl p-5 hover:border-white/[0.15] hover:shadow-xl hover:shadow-black/40 transition-all duration-300"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                      <Truck size={18} className="text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium text-sm">{s.name}</p>
-                      <p className="text-xs text-gray-500">Supplier #{s.id}</p>
-                    </div>
-                  </div>
+            <Card padding="none">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#F3F4F6] bg-[#F9FAFB]">
+                    {["Supplier", "Contact Person", "Email", "Delivery", "Price / Unit", "Reliability"].map((h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-[11px] font-semibold text-[#6B7280] uppercase tracking-wide"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#F3F4F6]">
+                  {suppliers.map((s) => {
+                    const reliabilityVariant = getReliabilityVariant(s.reliabilityScore);
+                    return (
+                      <tr key={s.id} className="hover:bg-[#F9FAFB] transition-colors duration-100">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-md bg-[#EFF6FF] flex items-center justify-center flex-shrink-0">
+                              <Truck size={13} className="text-[#2563EB]" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-[#111827]">{s.name}</p>
+                              <p className="text-[11px] text-[#9CA3AF]">#{s.id}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-[#374151]">
+                          {s.contactPerson ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-[#6B7280]">
+                          {s.email ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 text-[#374151]">
+                          {s.deliveryDays} days
+                        </td>
+                        <td className="px-4 py-3 font-medium text-[#111827]">
+                          ₹{s.pricePerUnit?.toLocaleString("en-IN")}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={reliabilityVariant}>
+                              {s.reliabilityScore?.toFixed(1)} / 5
+                            </Badge>
+                            <span className="text-xs text-[#9CA3AF]">
+                              {getReliabilityLabel(s.reliabilityScore)}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
 
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-1.5 text-gray-500">
-                        <Clock size={13} /> Delivery
-                      </span>
-                      <span className="text-gray-300">{s.deliveryDays} days</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-1.5 text-gray-500">
-                        <IndianRupee size={13} /> Price/unit
-                      </span>
-                      <span className="text-gray-300">₹{s.pricePerUnit}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-1.5 text-gray-500">
-                        <Star size={13} /> Reliability
-                      </span>
-                      <span className="text-emerald-400 font-medium">{s.reliabilityScore} / 5</span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+              {suppliers.length === 0 && (
+                <EmptyState
+                  icon={<Truck size={18} />}
+                  title="No suppliers found"
+                  description="Add suppliers to start managing your network."
+                />
+              )}
+            </Card>
           )}
 
-          {!loading && suppliers.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-600">
-              <Truck size={32} className="mb-2 opacity-40" />
-              <p className="text-sm">No suppliers found.</p>
-            </div>
-          )}
-        </motion.div>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

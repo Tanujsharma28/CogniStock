@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { isLoggedIn } from "../../lib/auth";
 import Sidebar from "../../components/Sidebar";
+import SectionHeader from "../../components/ui/SectionHeader";
+import Badge from "../../components/ui/Badge";
+import EmptyState from "../../components/ui/EmptyState";
+import Card from "../../components/ui/Card";
 import api from "../../lib/api";
 import { Package } from "lucide-react";
 
@@ -17,6 +20,12 @@ interface Product {
   price: number;
 }
 
+function getStockStatus(p: Product): "critical" | "danger" | "success" {
+  if (p.stockQuantity === 0) return "critical";
+  if (p.stockQuantity <= p.reorderThreshold) return "danger";
+  return "success";
+}
+
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,96 +33,113 @@ export default function InventoryPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.push("/login");
-      return;
-    }
-    api
-      .get("/products")
+    if (!isLoggedIn()) { router.push("/login"); return; }
+    api.get("/products")
       .then((res) => {
-        setProducts(res.data);
+        const payload = res.data?.data ?? res.data;
+        setProducts(Array.isArray(payload) ? payload : []);
         setLoading(false);
       })
       .catch(() => {
-        setError("Unable to load inventory. Please check your connection.");
+        setError("Unable to load inventory.");
         setLoading(false);
       });
   }, [router]);
 
+  const lowStockCount = products.filter(p => p.stockQuantity <= p.reorderThreshold).length;
+
   return (
-    <div className="flex min-h-screen bg-[#05070d]">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex-1 p-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      <main className="flex-1 overflow-y-auto bg-[#F7F8FA]">
+        <div className="max-w-7xl mx-auto px-6 py-6">
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="relative z-10"
-        >
-          <h1 className="text-white text-lg font-medium mb-1">Inventory</h1>
-          <p className="text-gray-500 text-sm mb-6">{products.length} products tracked across your catalog</p>
+          <SectionHeader
+            title="Inventory"
+            description={
+              products.length > 0
+                ? `${products.length} products · ${lowStockCount} low stock`
+                : "Manage your product catalog"
+            }
+          />
 
-          {loading && <p className="text-sm text-gray-600">Loading inventory...</p>}
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {loading && (
+            <Card>
+              <p className="text-sm text-[#9CA3AF] py-8 text-center">Loading inventory...</p>
+            </Card>
+          )}
+
+          {error && (
+            <Card>
+              <p className="text-sm text-[#DC2626] py-4 text-center">{error}</p>
+            </Card>
+          )}
 
           {!loading && !error && (
-            <div className="bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] rounded-2xl overflow-hidden">
+            <Card padding="none">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/[0.06] text-left">
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">SKU</th>
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">Name</th>
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">Stock</th>
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">Reorder at</th>
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">Price</th>
-                    <th className="p-4 text-gray-500 font-medium text-xs uppercase tracking-wide">Status</th>
+                  <tr className="border-b border-[#F3F4F6] bg-[#F9FAFB]">
+                    {["SKU", "Product Name", "Stock", "Reorder At", "Unit Price", "Status"].map((h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-[11px] font-semibold text-[#6B7280] uppercase tracking-wide"
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody>
-                  {products.map((p, i) => {
-                    const isLow = p.stockQuantity <= p.reorderThreshold;
+                <tbody className="divide-y divide-[#F3F4F6]">
+                  {products.map((p) => {
+                    const status = getStockStatus(p);
                     return (
-                      <motion.tr
+                      <tr
                         key={p.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: i * 0.05 }}
-                        className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors"
+                        className="hover:bg-[#F9FAFB] transition-colors duration-100"
                       >
-                        <td className="p-4 text-gray-300 font-mono text-xs">{p.sku}</td>
-                        <td className="p-4 text-white">{p.name}</td>
-                        <td className={`p-4 font-medium ${isLow ? "text-red-400" : "text-gray-300"}`}>
+                        <td className="px-4 py-3 font-mono text-xs text-[#6B7280]">
+                          {p.sku}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-[#111827]">
+                          {p.name}
+                        </td>
+                        <td className={`px-4 py-3 font-semibold ${
+                          status !== "success" ? "text-[#DC2626]" : "text-[#111827]"
+                        }`}>
                           {p.stockQuantity}
                         </td>
-                        <td className="p-4 text-gray-500">{p.reorderThreshold}</td>
-                        <td className="p-4 text-gray-300">₹{p.price}</td>
-                        <td className="p-4">
-                          <span
-                            className={`text-xs font-medium px-2.5 py-1 rounded-md ${
-                              isLow ? "bg-red-500/15 text-red-400 border border-red-500/20" : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
-                            }`}
-                          >
-                            {isLow ? "Low stock" : "In stock"}
-                          </span>
+                        <td className="px-4 py-3 text-[#6B7280]">
+                          {p.reorderThreshold}
                         </td>
-                      </motion.tr>
+                        <td className="px-4 py-3 text-[#111827]">
+                          ₹{p.price?.toLocaleString("en-IN")}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={status === "success" ? "success" : status}>
+                            {status === "critical" ? "Out of stock"
+                              : status === "danger" ? "Low stock"
+                              : "In stock"}
+                          </Badge>
+                        </td>
+                      </tr>
                     );
                   })}
                 </tbody>
               </table>
 
               {products.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-600">
-                  <Package size={32} className="mb-2 opacity-40" />
-                  <p className="text-sm">No products found.</p>
-                </div>
+                <EmptyState
+                  icon={<Package size={18} />}
+                  title="No products found"
+                  description="Add products to start tracking inventory."
+                />
               )}
-            </div>
+            </Card>
           )}
-        </motion.div>
-      </div>
+
+        </div>
+      </main>
     </div>
   );
 }
