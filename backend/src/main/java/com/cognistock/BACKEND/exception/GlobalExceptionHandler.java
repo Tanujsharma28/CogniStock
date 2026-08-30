@@ -3,7 +3,7 @@ package com.cognistock.backend.exception;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
+import com.cognistock.backend.exception.ServiceUnavailableException;
 import com.cognistock.backend.entity.AuditLog;
 import com.cognistock.backend.service.AuditLogService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +56,13 @@ public class GlobalExceptionHandler {
         log.warn("Validation failed: {}", fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(buildError(400, "Validation Failed", "Input validation failed", fieldErrors, req.getRequestURI()));
+    }
+        @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleServiceUnavailable(
+            ServiceUnavailableException ex, HttpServletRequest req) {
+        log.warn("Service unavailable [{}]: {}", ex.getService(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(buildError(503, "Service Unavailable", ex.getMessage(), null, req.getRequestURI()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

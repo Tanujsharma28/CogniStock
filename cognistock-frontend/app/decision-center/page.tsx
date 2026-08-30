@@ -13,7 +13,7 @@ import StatCard from "../../components/ui/StatCard";
 import api from "../../lib/api";
 import {
   GitPullRequest, CheckCircle, XCircle,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, ClipboardCheck
 } from "lucide-react";
 
 interface Decision {
@@ -28,6 +28,8 @@ interface Decision {
   requestedBy: string;
   actionTakenBy: string | null;
   rejectionReason: string | null;
+  outcome: "SUCCESS" | "FAILED" | "PARTIAL" | null;   // ← NEW
+  outcomeNotes: string | null;                          // ← NEW
   createdAt: string;
   decidedAt: string | null;
 }
@@ -58,12 +60,138 @@ const statusVariant: Record<string, "warning" | "success" | "danger" | "default"
   AUTO_EXECUTED: "info",
 };
 
+const outcomeConfig = {
+  SUCCESS: {
+    label: "Worked",
+    bg: "bg-[#F0FDF4]",
+    border: "border-[#BBF7D0]",
+    text: "text-[#15803D]",
+    activeBg: "bg-[#059669]",
+  },
+  PARTIAL: {
+    label: "Partial",
+    bg: "bg-[#FFFBEB]",
+    border: "border-[#FDE68A]",
+    text: "text-[#92400E]",
+    activeBg: "bg-[#D97706]",
+  },
+  FAILED: {
+    label: "Didn't Work",
+    bg: "bg-[#FEF2F2]",
+    border: "border-[#FECACA]",
+    text: "text-[#991B1B]",
+    activeBg: "bg-[#DC2626]",
+  },
+} as const;
+
 function formatDate(d: string | null) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("en-IN", {
     day: "2-digit", month: "short", year: "numeric",
   });
 }
+
+// ─── Outcome Section ──────────────────────────────────────────────────────────
+
+function OutcomeSection({
+  decision,
+  onSaved,
+}: {
+  decision: Decision;
+  onSaved: () => void;
+}) {
+  const [selected, setSelected] = useState<"SUCCESS" | "FAILED" | "PARTIAL" | null>(
+    decision.outcome ?? null
+  );
+  const [notes, setNotes]     = useState(decision.outcomeNotes ?? "");
+  const [saving, setSaving]   = useState(false);
+  const [saved, setSaved]     = useState(!!decision.outcome);
+
+  const handleSave = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.patch(`/decisions/${decision.id}/outcome`, {
+        outcome: selected,
+        notes: notes.trim() || null,
+      });
+      setSaved(true);
+      onSaved();
+    } catch {
+      // silent — non-blocking
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (saved && decision.outcome) {
+    const cfg = outcomeConfig[decision.outcome];
+    return (
+      <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg border ${cfg.bg} ${cfg.border}`}>
+        <ClipboardCheck size={13} className={cfg.text} />
+        <span className={`text-xs font-medium ${cfg.text}`}>
+          Outcome: {cfg.label}
+        </span>
+        {decision.outcomeNotes && (
+          <span className="text-xs text-[#6B7280]">— {decision.outcomeNotes}</span>
+        )}
+        <button
+          onClick={() => setSaved(false)}
+          className="ml-auto text-[10px] text-[#9CA3AF] hover:text-[#6B7280]"
+        >
+          Edit
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 border border-[#E5E7EB] rounded-lg p-3 bg-white">
+      <p className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wide mb-2">
+        Record Outcome
+      </p>
+      <div className="flex gap-2 mb-2.5">
+        {(["SUCCESS", "PARTIAL", "FAILED"] as const).map((o) => {
+          const cfg = outcomeConfig[o];
+          return (
+            <button
+              key={o}
+              onClick={() => setSelected(o)}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                selected === o
+                  ? `${cfg.activeBg} text-white border-transparent`
+                  : `bg-white ${cfg.text} ${cfg.border} hover:${cfg.bg}`
+              }`}
+            >
+              {cfg.label}
+            </button>
+          );
+        })}
+      </div>
+      <input
+        type="text"
+        placeholder="Notes (optional) — e.g. Units sold increased by 30%"
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        className="w-full text-xs px-3 py-2 border border-[#E5E7EB] rounded-lg mb-2
+          focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]
+          bg-white text-[#111827] placeholder:text-[#9CA3AF]"
+      />
+      <button
+        onClick={handleSave}
+        disabled={!selected || saving}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+          bg-[#111827] text-white hover:bg-[#1F2937]
+          disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        <ClipboardCheck size={12} />
+        {saving ? "Saving..." : "Save Outcome"}
+      </button>
+    </div>
+  );
+}
+
+// ─── Decision Row ─────────────────────────────────────────────────────────────
 
 function DecisionRow({
   decision,
@@ -96,7 +224,8 @@ function DecisionRow({
       .catch(() => setRejecting(false));
   };
 
-  const isPending = decision.status === "PENDING";
+  const isPending  = decision.status === "PENDING";
+  const isApproved = decision.status === "APPROVED";
 
   return (
     <div className="border-b border-[#F3F4F6] last:border-0">
@@ -116,6 +245,14 @@ function DecisionRow({
             <span className="text-[11px] text-[#9CA3AF] bg-[#F3F4F6] px-2 py-0.5 rounded">
               {decision.domain}
             </span>
+            {/* Outcome pill — visible in list view */}
+            {decision.outcome && (
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase tracking-wide
+                ${outcomeConfig[decision.outcome].bg} ${outcomeConfig[decision.outcome].text}
+                border ${outcomeConfig[decision.outcome].border}`}>
+                {outcomeConfig[decision.outcome].label}
+              </span>
+            )}
           </div>
           <p className="text-sm font-medium text-[#111827] leading-snug">
             {decision.problemStatement}
@@ -184,6 +321,11 @@ function DecisionRow({
             )}
           </div>
 
+          {/* Outcome tracking — only for APPROVED decisions */}
+          {isApproved && (
+            <OutcomeSection decision={decision} onSaved={onAction} />
+          )}
+
           {showReject && isPending && (
             <div className="mt-3 flex gap-2 items-start">
               <input
@@ -211,6 +353,8 @@ function DecisionRow({
     </div>
   );
 }
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DecisionCenterPage() {
   const [decisions, setDecisions] = useState<Decision[]>([]);
@@ -253,7 +397,6 @@ export default function DecisionCenterPage() {
             description="Review and act on AI-generated supply chain decisions"
           />
 
-          {/* Stats Row */}
           <div className="grid grid-cols-5 gap-3 mb-6">
             <StatCard label="Pending"       value={stats.pending       ?? 0} valueColor="text-[#D97706]" delay={0}    animate={false} />
             <StatCard label="Approved"      value={stats.approved      ?? 0} valueColor="text-[#059669]" delay={0.05} animate={false} />
@@ -262,7 +405,6 @@ export default function DecisionCenterPage() {
             <StatCard label="Auto Executed" value={stats.autoExecuted  ?? 0} valueColor="text-[#2563EB]" delay={0.2}  animate={false} />
           </div>
 
-          {/* Tab Bar */}
           <div className="flex gap-1 mb-4 bg-white border border-[#E5E7EB] rounded-lg p-1 w-fit shadow-sm">
             {(["PENDING", "ALL"] as ActiveTab[]).map((t) => (
               <button
@@ -281,7 +423,6 @@ export default function DecisionCenterPage() {
             ))}
           </div>
 
-          {/* Decisions List */}
           {loading ? (
             <Card>
               <p className="text-sm text-[#9CA3AF] py-8 text-center">Loading decisions...</p>

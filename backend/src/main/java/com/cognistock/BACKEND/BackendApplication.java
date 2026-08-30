@@ -18,14 +18,12 @@ public class BackendApplication {
 	@Bean
 	public CommandLineRunner initAdminUser(UserRepository userRepository, PasswordEncoder passwordEncoder) {
 		return args -> {
-			if (userRepository.findByEmail("admin@cognistock.com").isEmpty()) {
-				User admin = new User();
-				admin.setEmail("admin@cognistock.com");
-				admin.setPassword(passwordEncoder.encode("admin123"));
-				admin.setRole("ADMIN");
-				userRepository.save(admin);
-				System.out.println(">>> Auto-created admin user: admin@cognistock.com / admin123");
-			}
+			User admin = userRepository.findByEmail("admin@cognistock.com").orElse(new User());
+			admin.setEmail("admin@cognistock.com");
+			admin.setPassword(passwordEncoder.encode("Admin@123"));
+			admin.setRole("ADMIN");
+			userRepository.save(admin);
+			System.out.println(">>> Seeded/Updated admin user: admin@cognistock.com / Admin@123");
 		};
 	}
 }

@@ -33,10 +33,19 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/ai-decisions/**").permitAll()
                 .requestMatchers("/api/nlbi/**").permitAll()
                 .requestMatchers("/api/morning-brief/**").permitAll()
+                .requestMatchers("/api/settings/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/ai-decisions", "/api/ai-decisions/**")
+                    .hasAnyRole("ADMIN", "MANAGER", "STAFF", "VIEWER")
+                .requestMatchers(HttpMethod.POST, "/api/ai-decisions/*/decide")
+                    .hasAnyRole("ADMIN", "MANAGER")
                 .anyRequest().authenticated()
+            )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) ->
+                    response.sendError(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")
+                )
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -50,10 +59,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "http://localhost:3001"
-        ));
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

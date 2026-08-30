@@ -21,11 +21,19 @@ export default function ForecastChart({ productId }: { productId: number }) {
     api
       .get(`/forecast/product/${productId}`)
       .then((res) => {
-        setData(res.data.forecast);
+        const payload = res.data?.forecast ?? res.data?.data?.forecast ?? [];
+        setData(Array.isArray(payload) ? payload : []);
         setLoading(false);
       })
-      .catch(() => {
-        setError("Forecast unavailable — insufficient sales history.");
+      .catch((err) => {
+        const status = err?.response?.status;
+        if (status === 400) {
+          setError("Insufficient sales history for forecast. Add more sales records to enable predictions.");
+        } else if (status === 500 || status === 503) {
+          setError("Forecast service unavailable — AI prediction engine is not running.");
+        } else {
+          setError("Forecast unavailable.");
+        }
         setLoading(false);
       });
   }, [productId]);
@@ -39,11 +47,18 @@ export default function ForecastChart({ productId }: { productId: number }) {
       {loading && (
         <p className="text-sm text-[#9CA3AF] py-8 text-center">Loading forecast...</p>
       )}
+
       {error && (
-        <p className="text-sm text-[#D97706] py-8 text-center">{error}</p>
+        <div className="py-6 text-center">
+          <p className="text-sm text-[#D97706]">{error}</p>
+        </div>
       )}
 
-      {!loading && !error && (
+      {!loading && !error && data.length === 0 && (
+        <p className="text-sm text-[#9CA3AF] py-8 text-center">No forecast data available.</p>
+      )}
+
+      {!loading && !error && data.length > 0 && (
         <>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={data}>

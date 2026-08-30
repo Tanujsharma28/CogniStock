@@ -10,4 +10,6 @@ public class DecisionRequest {
     private String domain;         // INVENTORY, SALES, SUPPLIER
     private String priority;       // HIGH, MEDIUM, LOW
     private String requestedBy;
+    private Double confidence;      // AI confidence score
+private Double orderValue;      // estimated order value ₹
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatRevenue, formatPrice } from "../../lib/format";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isLoggedIn } from "../../lib/auth";
@@ -178,7 +179,7 @@ export default function MorningBriefPage() {
                   </p>
                   <div className="grid grid-cols-3 gap-4">
                     {[
-                      { label: "Inventory Value", value: `₹${(brief.snapshot.inventoryValue / 100000).toFixed(1)}L`, color: "text-[#111827]" },
+                      { label: "Inventory Value", value: formatRevenue(brief.snapshot.inventoryValue), color: "text-[#111827]" },
                       { label: "Total Orders", value: brief.snapshot.totalOrders, color: "text-[#111827]" },
                       { label: "Pending Orders", value: brief.snapshot.pendingOrders, color: "text-[#D97706]" },
                       { label: "Low Stock Items", value: brief.snapshot.lowStockCount, color: "text-[#DC2626]" },

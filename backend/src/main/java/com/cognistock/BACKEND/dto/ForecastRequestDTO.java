@@ -7,4 +7,5 @@ import java.util.List;
 public class ForecastRequestDTO {
     private List<SalesPointDTO> history;
     private int daysAhead = 30;
+    private Integer currentStock;
 }

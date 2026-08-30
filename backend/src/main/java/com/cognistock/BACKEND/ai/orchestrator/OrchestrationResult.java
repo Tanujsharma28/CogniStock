@@ -11,7 +11,7 @@ import java.util.Map;
 @Builder
 public class OrchestrationResult {
     private BusinessEvent triggerEvent;
-    private Map<String, Object> healthScore;      // HealthScore → Map
+    private Map<String, Object> healthScore;
     private RootCauseResponse rootCause;
     private List<String> decisions;
     private List<String> immediateActions;

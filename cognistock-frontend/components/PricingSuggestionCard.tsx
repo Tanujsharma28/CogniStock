@@ -6,7 +6,7 @@ import api from "../lib/api";
 import Card from "./ui/Card";
 import Button from "./ui/Button";
 import Badge from "./ui/Badge";
-
+import { formatPrice } from "../lib/format";
 interface PricingSuggestion {
   productId: number;
   productName: string;
@@ -73,10 +73,10 @@ export default function PricingSuggestionCard({ productId }: { productId: number
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <span className="text-sm text-[#9CA3AF] line-through">
-              ₹{data.currentPrice?.toLocaleString("en-IN")}
+              {formatPrice(data.currentPrice)}
             </span>
             <span className="text-lg font-semibold text-[#111827]">
-              ₹{data.suggestedPrice?.toLocaleString("en-IN")}
+             {formatPrice(data.suggestedPrice)}
             </span>
             <Badge variant={trend === "up" ? "success" : trend === "down" ? "danger" : "info"}>
               {trend === "up" && <TrendingUp size={11} className="mr-1" />}

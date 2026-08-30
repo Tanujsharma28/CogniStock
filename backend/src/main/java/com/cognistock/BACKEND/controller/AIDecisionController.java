@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,11 +27,13 @@ public class AIDecisionController {
     @Autowired
     private AIDecisionLogService decisionLogService;
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'STAFF', 'VIEWER')")
     @GetMapping
     public ResponseEntity<List<AIRecommendationLog>> getAllDecisions() {
         return ResponseEntity.ok(logRepository.findAllByOrderByCreatedAtDesc());
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @PostMapping("/{id}/decide")
     public ResponseEntity<Object> decide(@PathVariable Long id, @RequestBody Map<String, String> body) {
         String status = body.get("status");

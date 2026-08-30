@@ -1,5 +1,6 @@
 package com.cognistock.backend.service;
 
+import com.cognistock.backend.common.PageResponse;
 import com.cognistock.backend.dto.request.SalesRecordRequest;
 import com.cognistock.backend.entity.Product;
 import com.cognistock.backend.entity.SalesRecord;
@@ -8,6 +9,9 @@ import com.cognistock.backend.repository.ProductRepository;
 import com.cognistock.backend.repository.SalesRecordRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -19,6 +23,8 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class SalesRecordService {
+
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final SalesRecordRepository salesRecordRepository;
     private final ProductRepository productRepository;
@@ -45,8 +51,11 @@ public class SalesRecordService {
         return saved;
     }
 
-    public List<SalesRecord> getAll() {
-        return salesRecordRepository.findAll();
+    public PageResponse<SalesRecord> getAll(int page, int size) {
+        int clampedSize = Math.min(size, MAX_PAGE_SIZE);
+        Pageable pageable = PageRequest.of(page, clampedSize);
+        Page<SalesRecord> resultPage = salesRecordRepository.findAllWithProduct(pageable);
+        return PageResponse.from(resultPage);
     }
 
     public List<SalesRecord> getByDateRange(LocalDate start, LocalDate end) {

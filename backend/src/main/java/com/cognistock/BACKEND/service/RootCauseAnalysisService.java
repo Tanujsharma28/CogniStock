@@ -80,7 +80,7 @@ public class RootCauseAnalysisService {
             .causalChains(chains)
             .consolidatedEvidence(allEvidence)
             .businessImpact(businessImpact)
-            .overallConfidence(Math.round(overallConfidence * 100.0) / 100.0)
+            .overallConfidence(Math.round(overallConfidence * 10.0) / 10.0)
             .immediateActions(immediate)
             .preventiveActions(preventive)
             .analyzedAt(LocalDateTime.now())

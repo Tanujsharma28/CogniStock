@@ -91,4 +91,15 @@ public class DecisionController {
         return ResponseEntity.ok(ApiResponse.success(
             decisionService.autoExecute(id), "Decision auto-executed"));
     }
+
+    // Record outcome
+@PatchMapping("/{id}/outcome")
+@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+public ResponseEntity<ApiResponse<Decision>> recordOutcome(
+        @PathVariable Long id,
+        @RequestBody Map<String, String> body) {
+    return ResponseEntity.ok(ApiResponse.success(
+        decisionService.recordOutcome(id, body.get("outcome"), body.get("notes")),
+        "Outcome recorded"));
+}
 }

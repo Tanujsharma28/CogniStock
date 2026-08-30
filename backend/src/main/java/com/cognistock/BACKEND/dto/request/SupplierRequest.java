@@ -22,4 +22,14 @@ public class SupplierRequest {
 
     @NotBlank(message = "Address is required")
     private String address;
+
+    @Min(value = 0, message = "Delivery days cannot be negative")
+    private Integer deliveryDays;
+
+    @Min(value = 0, message = "Price per unit cannot be negative")
+    private Double pricePerUnit;
+
+    @Min(value = 0, message = "Reliability score cannot be negative")
+    @Max(value = 100, message = "Reliability score must be <= 100")
+    private Double reliabilityScore;
 }

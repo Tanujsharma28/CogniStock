@@ -1,6 +1,8 @@
 package com.cognistock.backend.repository;
 
 import com.cognistock.backend.entity.SalesRecord;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,6 +18,13 @@ public interface SalesRecordRepository extends JpaRepository<SalesRecord, Long> 
 
     // Product ki sales history
     List<SalesRecord> findByProductIdOrderBySaleDateDesc(Long productId);
+
+    // Paginated sales list with Product eagerly joined — avoids N+1 lazy-load
+    @Query(
+        value = "SELECT s FROM SalesRecord s JOIN FETCH s.product ORDER BY s.saleDate DESC",
+        countQuery = "SELECT COUNT(s) FROM SalesRecord s"
+    )
+    Page<SalesRecord> findAllWithProduct(Pageable pageable);
 
     // Total revenue by date range
     @Query("SELECT COALESCE(SUM(s.totalRevenue), 0) FROM SalesRecord s " +
@@ -58,4 +67,7 @@ public interface SalesRecordRepository extends JpaRepository<SalesRecord, Long> 
            "WHERE s.saleDate >= :since)")
     List<com.cognistock.backend.entity.Product> findDeadStockSince(
         @Param("since") LocalDate since);
+
+    // Batch fetch — sales records for multiple products in one query
+    List<SalesRecord> findByProductIdInOrderBySaleDateDesc(List<Long> productIds);
 }

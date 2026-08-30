@@ -2,6 +2,7 @@ package com.cognistock.backend.controller;
 
 import com.cognistock.backend.common.ApiConstants;
 import com.cognistock.backend.common.ApiResponse;
+import com.cognistock.backend.common.PageResponse;
 import com.cognistock.backend.dto.request.SalesRecordRequest;
 import com.cognistock.backend.entity.AuditLog;
 import com.cognistock.backend.entity.SalesRecord;
@@ -47,9 +48,11 @@ public class SalesRecordController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'STAFF')")
-    public ResponseEntity<ApiResponse<List<SalesRecord>>> getAll() {
+    public ResponseEntity<ApiResponse<PageResponse<SalesRecord>>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
         return ResponseEntity.ok(
-            ApiResponse.success(salesRecordService.getAll(), ApiConstants.FETCHED));
+            ApiResponse.success(salesRecordService.getAll(page, size), ApiConstants.FETCHED));
     }
 
     @GetMapping("/range")
@@ -86,4 +89,4 @@ public class SalesRecordController {
             ApiResponse.success(salesRecordService.getSummary(start, end),
                 ApiConstants.FETCHED));
     }
-}
+}

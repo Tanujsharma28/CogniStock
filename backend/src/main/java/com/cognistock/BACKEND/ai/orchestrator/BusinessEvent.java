@@ -15,8 +15,8 @@ public class BusinessEvent {
     }
 
     private EventType type;
-    private String triggeredBy;   // email of user or "SYSTEM"
-    private String resourceId;    // productId, orderId, etc.
+    private String triggeredBy;
+    private String resourceId;
     private String resourceType;
     private Map<String, Object> payload;
     private LocalDateTime occurredAt;

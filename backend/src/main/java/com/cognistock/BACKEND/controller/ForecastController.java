@@ -1,59 +1,37 @@
 package com.cognistock.backend.controller;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import com.cognistock.backend.common.ApiResponse;
+import com.cognistock.backend.service.ForecastAccuracyService;
+import com.cognistock.backend.service.ForecastService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
-import com.cognistock.backend.dto.ForecastRequestDTO;
-import com.cognistock.backend.dto.SalesPointDTO;
-import com.cognistock.backend.entity.SalesRecord;
-import com.cognistock.backend.repository.SalesRecordRepository;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/forecast")
+@RequiredArgsConstructor
 public class ForecastController {
 
-    @Autowired
-    private SalesRecordRepository salesRecordRepository;
+    private final ForecastService         forecastService;
+    private final ForecastAccuracyService accuracyService;  // NEW
 
-    @Autowired
-    private RestTemplate restTemplate;
-
-    private static final String AI_SERVICE_URL = "http://localhost:8000/forecast";
+    // ── Existing endpoint — unchanged ─────────────────────────────────────────
 
     @GetMapping("/product/{productId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<Object> getForecastForProduct(@PathVariable Long productId) {
+        return ResponseEntity.ok(forecastService.getForecast(productId));
+    }
 
-        List<SalesRecord> records = salesRecordRepository.findAll().stream()
-            .filter(r -> r.getProduct() != null && r.getProduct().getId().equals(productId))
-            .collect(Collectors.toList());
+    // ── New endpoint — forecast accuracy ─────────────────────────────────────
 
-        if (records.isEmpty()) {
-            return ResponseEntity.badRequest().body("Is product ke liye sales history nahi mili");
-        }
-
-        List<SalesPointDTO> history = records.stream()
-            .map(r -> {
-                SalesPointDTO point = new SalesPointDTO();
-                point.setDate(r.getSaleDate().toString());
-                point.setQuantity(r.getQuantitySold());
-                return point;
-            })
-            .collect(Collectors.toList());
-
-        ForecastRequestDTO request = new ForecastRequestDTO();
-        request.setHistory(history);
-        request.setDaysAhead(30);
-
-        Object forecastResponse = restTemplate.postForObject(AI_SERVICE_URL, request, Object.class);
-
-        return ResponseEntity.ok(forecastResponse);
+    @GetMapping("/accuracy")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAccuracy() {
+        Map<String, Object> report = accuracyService.getAccuracyReport();
+        return ResponseEntity.ok(ApiResponse.success(report, "Forecast accuracy report"));
     }
 }

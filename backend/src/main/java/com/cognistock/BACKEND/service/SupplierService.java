@@ -61,23 +61,29 @@ public class SupplierService {
     }
 
     private void mapToEntity(SupplierRequest request, Supplier supplier) {
-        supplier.setName(request.getName());
-        supplier.setContactPerson(request.getContactPerson());
-        supplier.setEmail(request.getEmail());
-        supplier.setPhone(request.getPhone());
-        supplier.setAddress(request.getAddress());
-    }
+    supplier.setName(request.getName());
+    supplier.setContactPerson(request.getContactPerson());
+    supplier.setEmail(request.getEmail());
+    supplier.setPhone(request.getPhone());
+    supplier.setAddress(request.getAddress());
+    supplier.setDeliveryDays(request.getDeliveryDays());
+    supplier.setPricePerUnit(request.getPricePerUnit());
+    supplier.setReliabilityScore(request.getReliabilityScore());
+}
 
     private SupplierResponse toResponse(Supplier supplier) {
-        return SupplierResponse.builder()
-                .id(supplier.getId())
-                .name(supplier.getName())
-                .contactPerson(supplier.getContactPerson())
-                .email(supplier.getEmail())
-                .phone(supplier.getPhone())
-                .address(supplier.getAddress())
-                .createdAt(supplier.getCreatedAt())
-                .updatedAt(supplier.getUpdatedAt())
-                .build();
-    }
+    return SupplierResponse.builder()
+            .id(supplier.getId())
+            .name(supplier.getName())
+            .contactPerson(supplier.getContactPerson())
+            .email(supplier.getEmail())
+            .phone(supplier.getPhone())
+            .address(supplier.getAddress())
+            .deliveryDays(supplier.getDeliveryDays())
+            .pricePerUnit(supplier.getPricePerUnit())
+            .reliabilityScore(supplier.getReliabilityScore())
+            .createdAt(supplier.getCreatedAt())
+            .updatedAt(supplier.getUpdatedAt())
+            .build();
+}
 }

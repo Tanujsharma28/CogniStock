@@ -1,15 +1,16 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { formatPrice } from "../../lib/format";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isLoggedIn } from "../../lib/auth";
+import { isLoggedIn, getUserRole } from "../../lib/auth";
 import Sidebar from "../../components/Sidebar";
 import SectionHeader from "../../components/ui/SectionHeader";
 import Badge from "../../components/ui/Badge";
 import EmptyState from "../../components/ui/EmptyState";
 import Card from "../../components/ui/Card";
 import api from "../../lib/api";
-import { Package } from "lucide-react";
+import ProductFormModal from "../../components/ProductFormModal";
+import { Package, Plus, Pencil, Trash2 } from "lucide-react";
 
 interface Product {
   id: number;
@@ -32,8 +33,15 @@ export default function InventoryPage() {
   const [error, setError] = useState("");
   const router = useRouter();
 
-  useEffect(() => {
-    if (!isLoggedIn()) { router.push("/login"); return; }
+  const [canEdit, setCanEdit] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const loadProducts = useCallback(() => {
+    setLoading(true);
     api.get("/products")
       .then((res) => {
         const payload = res.data?.data ?? res.data;
@@ -44,9 +52,45 @@ export default function InventoryPage() {
         setError("Unable to load inventory.");
         setLoading(false);
       });
-  }, [router]);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn()) { router.push("/login"); return; }
+    loadProducts();
+  }, [router, loadProducts]);
+
+  useEffect(() => {
+    const role = getUserRole();
+    setCanEdit(role === "ADMIN" || role === "MANAGER");
+    setCanDelete(role === "ADMIN");
+  }, []);
 
   const lowStockCount = products.filter(p => p.stockQuantity <= p.reorderThreshold).length;
+
+  function openAddModal() {
+    setEditingProduct(null);
+    setModalOpen(true);
+  }
+
+  function openEditModal(product: Product) {
+    setEditingProduct(product);
+    setModalOpen(true);
+  }
+
+  async function handleDelete(product: Product) {
+    const confirmed = window.confirm(`Delete "${product.name}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingId(product.id);
+    try {
+      await api.delete(`/products/${product.id}`);
+      loadProducts();
+    } catch {
+      setError("Unable to delete product.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -54,14 +98,26 @@ export default function InventoryPage() {
       <main className="flex-1 overflow-y-auto bg-[#F7F8FA]">
         <div className="max-w-7xl mx-auto px-6 py-6">
 
-          <SectionHeader
-            title="Inventory"
-            description={
-              products.length > 0
-                ? `${products.length} products · ${lowStockCount} low stock`
-                : "Manage your product catalog"
-            }
-          />
+          <div className="flex items-start justify-between gap-3">
+            <SectionHeader
+              title="Inventory"
+              description={
+                products.length > 0
+                  ? `${products.length} products · ${lowStockCount} low stock`
+                  : "Manage your product catalog"
+              }
+            />
+            {canEdit && (
+              <button
+                onClick={openAddModal}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+                  bg-[#111827] text-white hover:bg-[#1F2937] transition-colors shrink-0"
+              >
+                <Plus size={14} />
+                Add Product
+              </button>
+            )}
+          </div>
 
           {loading && (
             <Card>
@@ -80,7 +136,7 @@ export default function InventoryPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#F3F4F6] bg-[#F9FAFB]">
-                    {["SKU", "Product Name", "Stock", "Reorder At", "Unit Price", "Status"].map((h) => (
+                    {["SKU", "Product Name", "Stock", "Reorder At", "Unit Price", "Status", ""].map((h) => (
                       <th
                         key={h}
                         className="px-4 py-3 text-left text-[11px] font-semibold text-[#6B7280] uppercase tracking-wide"
@@ -113,7 +169,7 @@ export default function InventoryPage() {
                           {p.reorderThreshold}
                         </td>
                         <td className="px-4 py-3 text-[#111827]">
-                          ₹{p.price?.toLocaleString("en-IN")}
+                          {formatPrice(p.price)}
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant={status === "success" ? "success" : status}>
@@ -121,6 +177,29 @@ export default function InventoryPage() {
                               : status === "danger" ? "Low stock"
                               : "In stock"}
                           </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 justify-end">
+                            {canEdit && (
+                              <button
+                                onClick={() => openEditModal(p)}
+                                className="p-1.5 rounded-md text-[#9CA3AF] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-colors"
+                                title="Edit product"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDelete(p)}
+                                disabled={deletingId === p.id}
+                                className="p-1.5 rounded-md text-[#9CA3AF] hover:text-[#DC2626] hover:bg-[#FEF2F2] transition-colors disabled:opacity-40"
+                                title="Delete product"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -140,6 +219,14 @@ export default function InventoryPage() {
 
         </div>
       </main>
+
+      {modalOpen && (
+        <ProductFormModal
+          product={editingProduct}
+          onClose={() => setModalOpen(false)}
+          onSaved={loadProducts}
+        />
+      )}
     </div>
   );
 }

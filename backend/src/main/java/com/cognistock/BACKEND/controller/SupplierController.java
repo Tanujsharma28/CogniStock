@@ -6,6 +6,7 @@ import com.cognistock.backend.dto.request.SupplierRequest;
 import com.cognistock.backend.dto.response.SupplierResponse;
 import com.cognistock.backend.entity.AuditLog;
 import com.cognistock.backend.service.AuditLogService;
+import com.cognistock.backend.service.SupplierIntelligenceService;
 import com.cognistock.backend.service.SupplierService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -16,20 +17,30 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/suppliers")
 @RequiredArgsConstructor
 public class SupplierController {
 
-    private final SupplierService supplierService;
-    private final AuditLogService auditLogService;
+    private final SupplierService             supplierService;
+    private final AuditLogService             auditLogService;
+    private final SupplierIntelligenceService supplierIntelligenceService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'STAFF')")
     public ResponseEntity<ApiResponse<List<SupplierResponse>>> getAll() {
         return ResponseEntity.ok(
             ApiResponse.success(supplierService.getAllSuppliers(), ApiConstants.FETCHED));
+    }
+
+    @GetMapping("/recommendations")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecommendations() {
+        return ResponseEntity.ok(ApiResponse.success(
+            supplierIntelligenceService.getRecommendations(),
+            "Supplier recommendations generated"));
     }
 
     @GetMapping("/{id}")
@@ -84,4 +95,5 @@ public class SupplierController {
         return ResponseEntity.ok(
             ApiResponse.success(null, ApiConstants.DELETED));
     }
-}
+
+}
