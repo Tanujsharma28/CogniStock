@@ -9,8 +9,9 @@ import Badge from "../../components/ui/Badge";
 import EmptyState from "../../components/ui/EmptyState";
 import Card from "../../components/ui/Card";
 import api from "../../lib/api";
-import { Receipt, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Receipt, CheckCircle, XCircle, Loader2, Plus } from "lucide-react";
 import { formatRevenue } from "../../lib/format";
+import OrderFormModal from "../../components/OrderFormModal";
 
 interface OrderItem {
   id: number;
@@ -60,7 +61,6 @@ function getOrderTotal(items: OrderItem[]) {
   return items.reduce((sum, item) => sum + (item.unitPrice ?? 0) * (item.quantity ?? 0), 0);
 }
 
-// Inline confirm state per order
 type ActionState =
   | { type: "idle" }
   | { type: "confirming"; action: "APPROVED" | "CANCELLED" }
@@ -84,7 +84,6 @@ function OrderRow({
     setActionState({ type: "loading" });
     try {
       await onStatusChange(order.id, action);
-      // Parent refreshes list — this row will unmount or re-render
     } catch {
       setActionState({ type: "error", message: "Action failed. Try again." });
       setTimeout(() => setActionState({ type: "idle" }), 3000);
@@ -115,13 +114,10 @@ function OrderRow({
           {order.status}
         </Badge>
       </td>
-
-      {/* Actions column */}
       <td className="px-4 py-3">
         {(!isPending || !canApprove) && (
           <span className="text-xs text-[#D1D5DB]">—</span>
         )}
-
         {isPending && canApprove && actionState.type === "idle" && (
           <div className="flex items-center gap-1.5">
             <button
@@ -144,7 +140,6 @@ function OrderRow({
             </button>
           </div>
         )}
-
         {isPending && canApprove && actionState.type === "confirming" && (
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-[#374151] font-medium">
@@ -168,14 +163,12 @@ function OrderRow({
             </button>
           </div>
         )}
-
         {isPending && canApprove && actionState.type === "loading" && (
           <div className="flex items-center gap-1.5 text-[11px] text-[#6B7280]">
             <Loader2 size={11} className="animate-spin" />
             Updating...
           </div>
         )}
-
         {isPending && canApprove && actionState.type === "error" && (
           <span className="text-[11px] text-[#DC2626]">{actionState.message}</span>
         )}
@@ -185,10 +178,11 @@ function OrderRow({
 }
 
 export default function OrdersPage() {
-  const [orders, setOrders]             = useState<Order[]>([]);
-  const [loading, setLoading]           = useState(true);
+  const [orders, setOrders]           = useState<Order[]>([]);
+  const [loading, setLoading]         = useState(true);
   const [activeFilter, setActiveFilter] = useState<StatusFilter>("ALL");
-  const [canApprove, setCanApprove]     = useState(false);
+  const [canApprove, setCanApprove]   = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
   const router = useRouter();
 
   const fetchOrders = useCallback(() => {
@@ -209,7 +203,7 @@ export default function OrdersPage() {
 
   const handleStatusChange = useCallback(async (id: number, status: "APPROVED" | "CANCELLED") => {
     await api.patch(`/orders/${id}/status?status=${status}`);
-    fetchOrders(); // refresh list
+    fetchOrders();
   }, [fetchOrders]);
 
   const filteredOrders = activeFilter === "ALL"
@@ -227,6 +221,18 @@ export default function OrdersPage() {
           <SectionHeader
             title="Orders"
             description={`${orders.length} purchase orders`}
+            action={
+              canApprove ? (
+                <button
+                  onClick={() => setShowOrderModal(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+                    bg-[#111827] text-white hover:bg-[#1F2937] transition-colors"
+                >
+                  <Plus size={14} />
+                  New Order
+                </button>
+              ) : undefined
+            }
           />
 
           {/* Status filter tabs */}
@@ -261,7 +267,6 @@ export default function OrdersPage() {
                 </button>
               );
             })}
-
             {pendingCount > 0 && (
               <span className="ml-auto text-[11px] text-[#D97706] font-medium">
                 {pendingCount} order{pendingCount > 1 ? "s" : ""} awaiting approval
@@ -318,6 +323,13 @@ export default function OrdersPage() {
 
         </div>
       </main>
+
+      {showOrderModal && (
+        <OrderFormModal
+          onClose={() => setShowOrderModal(false)}
+          onSaved={() => { fetchOrders(); }}
+        />
+      )}
     </div>
   );
 }

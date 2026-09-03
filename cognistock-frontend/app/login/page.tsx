@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
+import api from "../../lib/api";
 import { saveToken } from "../../lib/auth";
 import { Mail, Lock, Eye, EyeOff, TrendingUp, Package, Bell, BarChart2 } from "lucide-react";
 
@@ -19,7 +19,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:8080/api/auth/login", {
+      const res = await api.post("/auth/login", {
         email: email.trim(),
         password: password.trim(),
       });
@@ -96,18 +96,49 @@ export default function LoginPage() {
           <h2 className="text-xl font-semibold text-[#111827] mb-1">Sign in</h2>
           <p className="text-sm text-[#6B7280] mb-4">Enter your credentials to continue</p>
 
-          <div 
+          {/* Demo Admin Login */}
+          <div
             onClick={() => {
               setEmail("admin@cognistock.com");
               setPassword("Admin@123");
             }}
-            className="mb-5 p-3 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] cursor-pointer hover:bg-[#DBEAFE] transition-colors flex items-center justify-between"
+            className="mb-2 p-3 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] cursor-pointer hover:bg-[#DBEAFE] transition-colors flex items-center justify-between"
           >
             <div>
               <p className="text-xs font-semibold text-[#1E40AF]">Demo Admin Login</p>
               <p className="text-[11px] text-[#3B82F6]">admin@cognistock.com · Admin@123</p>
             </div>
             <span className="text-xs font-medium text-[#2563EB] bg-white px-2 py-1 rounded shadow-sm">Auto-fill</span>
+          </div>
+
+          {/* Demo Manager Login */}
+          <div
+            onClick={() => {
+              setEmail("manager@cognistock.com");
+              setPassword("Manager@123");
+            }}
+            className="mb-2 p-3 rounded-lg bg-[#F0FDF4] border border-[#BBF7D0] cursor-pointer hover:bg-[#DCFCE7] transition-colors flex items-center justify-between"
+          >
+            <div>
+              <p className="text-xs font-semibold text-[#166534]">Demo Manager Login</p>
+              <p className="text-[11px] text-[#16A34A]">manager@cognistock.com · Manager@123</p>
+            </div>
+            <span className="text-xs font-medium text-[#16A34A] bg-white px-2 py-1 rounded shadow-sm">Auto-fill</span>
+          </div>
+
+          {/* Demo Staff Login */}
+          <div
+            onClick={() => {
+              setEmail("staff@cognistock.com");
+              setPassword("Staff@123");
+            }}
+            className="mb-5 p-3 rounded-lg bg-[#FFF7ED] border border-[#FED7AA] cursor-pointer hover:bg-[#FFEDD5] transition-colors flex items-center justify-between"
+          >
+            <div>
+              <p className="text-xs font-semibold text-[#9A3412]">Demo Staff Login</p>
+              <p className="text-[11px] text-[#EA580C]">staff@cognistock.com · Staff@123</p>
+            </div>
+            <span className="text-xs font-medium text-[#EA580C] bg-white px-2 py-1 rounded shadow-sm">Auto-fill</span>
           </div>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-3">

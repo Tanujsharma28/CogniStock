@@ -1,12 +1,13 @@
 package com.cognistock.backend;
 
-import com.cognistock.backend.entity.User;
-import com.cognistock.backend.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import com.cognistock.backend.entity.User;
+import com.cognistock.backend.repository.UserRepository;
 
 @SpringBootApplication
 public class BackendApplication {
@@ -18,13 +19,19 @@ public class BackendApplication {
 	@Bean
 	public CommandLineRunner initAdminUser(UserRepository userRepository, PasswordEncoder passwordEncoder) {
 		return args -> {
-			User admin = userRepository.findByEmail("admin@cognistock.com").orElse(new User());
-			admin.setEmail("admin@cognistock.com");
-			admin.setPassword(passwordEncoder.encode("Admin@123"));
-			admin.setRole("ADMIN");
-			userRepository.save(admin);
-			System.out.println(">>> Seeded/Updated admin user: admin@cognistock.com / Admin@123");
+			seedUser(userRepository, passwordEncoder, "admin@cognistock.com", "Admin@123", "ADMIN");
+			seedUser(userRepository, passwordEncoder, "manager@cognistock.com", "Manager@123", "MANAGER");
+			seedUser(userRepository, passwordEncoder, "staff@cognistock.com", "Staff@123", "STAFF");
 		};
 	}
-}
 
+	private void seedUser(UserRepository userRepository, PasswordEncoder passwordEncoder,
+	                       String email, String rawPassword, String role) {
+		User user = userRepository.findByEmail(email).orElse(new User());
+		user.setEmail(email);
+		user.setPassword(passwordEncoder.encode(rawPassword));
+		user.setRole(role);
+		userRepository.save(user);
+		System.out.println(">>> Seeded/Updated " + role + " user: " + email);
+	}
+}

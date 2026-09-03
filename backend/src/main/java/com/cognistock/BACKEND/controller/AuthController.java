@@ -1,5 +1,13 @@
 package com.cognistock.backend.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.cognistock.backend.dto.AuthRequestDTO;
 import com.cognistock.backend.dto.AuthResponseDTO;
 import com.cognistock.backend.entity.AuditLog;
@@ -7,11 +15,8 @@ import com.cognistock.backend.entity.User;
 import com.cognistock.backend.repository.UserRepository;
 import com.cognistock.backend.service.AuditLogService;
 import com.cognistock.backend.util.JwtUtil;
+
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -33,16 +38,9 @@ public class AuthController {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        // Role assign — safe default STAFF
-        // Role assign — safe default STAFF
-        if (request.getRole() != null && !request.getRole().isBlank()) {
-            String r = request.getRole().toUpperCase();
-            if (r.equals("ADMIN") || r.equals("MANAGER") || r.equals("STAFF") || r.equals("VIEWER")) {
-                user.setRole(r);
-            } else {
-                user.setRole("STAFF");
-            }
-        }
+        // SECURITY: public self-registration can ONLY create STAFF accounts.
+        // ADMIN/MANAGER accounts must be created via DB seed or an authenticated admin-only endpoint.
+        user.setRole("STAFF");
 
         userRepository.save(user);
 
@@ -52,11 +50,6 @@ public class AuthController {
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
         return ResponseEntity.ok(new AuthResponseDTO(token, user.getEmail(), user.getRole()));
-    }
-
-    @GetMapping("/generate-hash")
-    public String generateHash() {
-        return passwordEncoder.encode("admin123");
     }
 
     @PostMapping("/login")

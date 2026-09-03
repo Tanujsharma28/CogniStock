@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { X, Tag, TrendingDown, PackageX, CheckCircle, Loader2, ExternalLink } from "lucide-react";
 import api from "../lib/api";
-import { getToken } from "../lib/auth";
 import { formatRevenue } from "../lib/format";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -109,17 +108,8 @@ export default function DeadStockRecoveryModal({
     };
 
     try {
-      const res = await fetch("http://localhost:8080/api/decisions", {
-        method:  "POST",
-        headers: {
-          "Content-Type":  "application/json",
-          Authorization:   `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify(decisionPayload),
-      });
-
-      if (!res.ok) throw new Error(`Decision creation failed: ${res.status}`);
-      const json = await res.json();
+      const res = await api.post("/decisions", decisionPayload);
+      const json = res.data;
       const decision = json.data ?? json;
       setCreatedDecisionId(decision.id ?? null);
       setSuccess(true);
@@ -167,6 +157,7 @@ export default function DeadStockRecoveryModal({
             >
               Close
             </button>
+            
             <a
               href="/decision-center"
               className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2

@@ -35,11 +35,34 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/nlbi/**").permitAll()
                 .requestMatchers("/api/morning-brief/**").permitAll()
-                .requestMatchers("/api/settings/**").authenticated()
+
+                // ── ADMIN ONLY ──
+                .requestMatchers("/api/settings/**").hasRole("ADMIN")
+                .requestMatchers("/api/audit-logs/**").hasRole("ADMIN")
+                .requestMatchers("/api/simulate/**").hasRole("ADMIN")
+
+                // ── MANAGER + ADMIN ──
+                .requestMatchers("/api/suppliers/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/api/decisions/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/api/auto-po/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/api/orchestrator/**").hasAnyRole("ADMIN", "MANAGER")
+
+                .requestMatchers(HttpMethod.POST, "/api/products/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.PUT, "/api/products/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasAnyRole("ADMIN", "MANAGER")
+
+                .requestMatchers(HttpMethod.POST, "/api/orders").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.PATCH, "/api/orders/*/status").hasAnyRole("ADMIN", "MANAGER")
+
+                .requestMatchers(HttpMethod.POST, "/api/pricing/apply/**").hasAnyRole("ADMIN", "MANAGER")
+
+                // ── Existing rules (untouched) ──
                 .requestMatchers(HttpMethod.GET, "/api/ai-decisions", "/api/ai-decisions/**")
                     .hasAnyRole("ADMIN", "MANAGER", "STAFF", "VIEWER")
                 .requestMatchers(HttpMethod.POST, "/api/ai-decisions/*/decide")
                     .hasAnyRole("ADMIN", "MANAGER")
+
+                // ── Everything else: any logged-in role ──
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex

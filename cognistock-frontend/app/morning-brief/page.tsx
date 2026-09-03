@@ -86,10 +86,12 @@ export default function MorningBriefPage() {
   const [brief, setBrief] = useState<Brief | null>(null);
   const [insights, setInsights] = useState<GeminiInsights | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const router = useRouter();
 
   const load = () => {
     setLoading(true);
+    setError(false);
     setInsights(null);
     api.get("/morning-brief")
       .then((res) => {
@@ -109,7 +111,10 @@ export default function MorningBriefPage() {
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setError(true);
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -148,7 +153,22 @@ export default function MorningBriefPage() {
             </Card>
           )}
 
-          {!loading && brief && (
+          {!loading && error && (
+            <Card>
+              <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                <AlertTriangle size={20} className="text-[#DC2626]" />
+                <p className="text-sm font-medium text-[#374151]">Couldn't generate the morning brief</p>
+                <p className="text-xs text-[#9CA3AF] max-w-sm">
+                  There was a problem reaching the server. Please try again.
+                </p>
+                <Button variant="secondary" size="sm" onClick={load} className="mt-2">
+                  Retry
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {!loading && !error && brief && (
             <div className="flex flex-col gap-4">
 
               {/* Row 1 — Health Score + Snapshot */}

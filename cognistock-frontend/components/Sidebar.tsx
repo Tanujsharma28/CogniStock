@@ -1,27 +1,31 @@
-﻿"use client";
-
+"use client";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Box, Truck, Receipt, BarChart2,
   Sun, GitPullRequest, Settings, LogOut, TrendingUp,
   ClipboardList, AlertTriangle, Activity,
+  PackageX, MessageSquare, GitBranch,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { removeToken } from "../lib/auth";
+import { removeToken, getUserRole } from "../lib/auth";
 
 const mainNav = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-  { label: "Inventory",  icon: Box,             path: "/inventory" },
-  { label: "Suppliers",  icon: Truck,           path: "/suppliers" },
-  { label: "Orders",     icon: Receipt,         path: "/orders" },
+  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard", roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { label: "Inventory",  icon: Box,             path: "/inventory", roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { label: "Suppliers",  icon: Truck,           path: "/suppliers", roles: ["ADMIN", "MANAGER"] },
+  { label: "Orders",     icon: Receipt,         path: "/orders", roles: ["ADMIN", "MANAGER", "STAFF"] },
 ];
 
 const intelligenceNav = [
-  { label: "AI Insights",     icon: BarChart2,      path: "/ai-insights"     },
-  { label: "Early Warning",   icon: AlertTriangle,  path: "/early-warning"   },
-  { label: "Morning Brief",   icon: Sun,            path: "/morning-brief"   },
-  { label: "Decision Center", icon: GitPullRequest, path: "/decision-center" },
-  { label: "AI Performance",  icon: Activity,       path: "/ai-performance"  },
-  { label: "Audit Logs",      icon: ClipboardList,  path: "/audit-logs"      },
+  { label: "AI Insights",     icon: BarChart2,      path: "/ai-insights",     roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { label: "Early Warning",   icon: AlertTriangle,  path: "/early-warning",   roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { label: "Dead Stock",      icon: PackageX,       path: "/dead-stock",      roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { label: "Morning Brief",   icon: Sun,            path: "/morning-brief",   roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { label: "Decision Center", icon: GitPullRequest, path: "/decision-center", roles: ["ADMIN", "MANAGER"] },
+  { label: "AI Performance",  icon: Activity,       path: "/ai-performance",  roles: ["ADMIN", "MANAGER"] },
+  { label: "Audit Logs",      icon: ClipboardList,  path: "/audit-logs",      roles: ["ADMIN"] },
+  { label: "Chat",            icon: MessageSquare,  path: "/chat",            roles: ["ADMIN", "MANAGER", "STAFF"] },
+  { label: "AI Timeline",     icon: GitBranch,      path: "/ai-timeline",     roles: ["ADMIN", "MANAGER", "STAFF"] },
 ];
 
 function NavGroup({ label, children }: { label: string; children: React.ReactNode }) {
@@ -50,13 +54,27 @@ function NavItem({ icon: Icon, label, path, active, onClick }: {
     </button>
   );
 }
-
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const [role, setRole] = useState<string>("STAFF");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setRole(getUserRole() ?? "STAFF");
+    setMounted(true);
+  }, []);
+
   const isActive = (path: string) => pathname === path;
   const go = (path: string) => router.push(path);
   const handleLogout = () => { removeToken(); window.location.href = "/login"; };
+
+  const visibleMainNav = mainNav.filter((item) => item.roles.includes(role));
+  const visibleIntelligenceNav = intelligenceNav.filter((item) => item.roles.includes(role));
+
+  if (!mounted) {
+    return <aside className="w-56 bg-[#111827] flex-shrink-0 min-h-screen border-r border-[#1F2937]" />;
+  }
 
   return (
     <aside className="w-56 bg-[#111827] flex-shrink-0 min-h-screen flex flex-col border-r border-[#1F2937]">
@@ -70,21 +88,23 @@ export default function Sidebar() {
       </div>
       <nav className="flex-1 px-3 py-4 flex flex-col gap-4 overflow-y-auto">
         <NavGroup label="Operations">
-          {mainNav.map((item) => (
+          {visibleMainNav.map((item) => (
             <NavItem key={item.path} icon={item.icon} label={item.label} path={item.path}
               active={isActive(item.path)} onClick={() => go(item.path)} />
           ))}
         </NavGroup>
         <NavGroup label="Intelligence">
-          {intelligenceNav.map((item) => (
+          {visibleIntelligenceNav.map((item) => (
             <NavItem key={item.path} icon={item.icon} label={item.label} path={item.path}
               active={isActive(item.path)} onClick={() => go(item.path)} />
           ))}
         </NavGroup>
       </nav>
       <div className="px-3 py-3 border-t border-[#1F2937] flex flex-col gap-0.5">
-        <NavItem icon={Settings} label="Settings" path="/settings"
-          active={isActive("/settings")} onClick={() => go("/settings")} />
+        {role === "ADMIN" && (
+          <NavItem icon={Settings} label="Settings" path="/settings"
+            active={isActive("/settings")} onClick={() => go("/settings")} />
+        )}
         <button onClick={handleLogout}
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[#9CA3AF] hover:bg-[#1F2937] hover:text-[#FCA5A5] transition-colors duration-150 cursor-pointer">
           <LogOut size={15} strokeWidth={1.75} />

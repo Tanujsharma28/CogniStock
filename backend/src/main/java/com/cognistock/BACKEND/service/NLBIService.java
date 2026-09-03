@@ -1,22 +1,32 @@
 package com.cognistock.backend.service;
 
-import com.cognistock.backend.entity.Product;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.RestTemplate;
+
 import com.cognistock.backend.entity.AIRecommendationLog;
+import com.cognistock.backend.entity.Order;
+import com.cognistock.backend.entity.Product;
+import com.cognistock.backend.entity.Supplier;
 import com.cognistock.backend.repository.AIRecommendationLogRepository;
 import com.cognistock.backend.repository.OrderRepository;
 import com.cognistock.backend.repository.ProductRepository;
 import com.cognistock.backend.repository.SupplierRepository;
-import com.cognistock.backend.entity.Supplier;
-import com.cognistock.backend.entity.Order;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.*;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class NLBIService {
 
@@ -31,16 +41,12 @@ public class NLBIService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     public String answer(String question) {
-        // Step 1: DB se live data collect karo
         List<Product> products = productRepository.findAll();
         List<Order> orders = orderRepository.findAll();
         List<Supplier> suppliers = supplierRepository.findAll();
         List<AIRecommendationLog> aiLogs = aiLogRepository.findAll();
 
-        // Step 2: Context string banao
         String context = buildContext(products, orders, suppliers, aiLogs);
-
-        // Step 3: Gemini ko bhejo
         return askGemini(question, context);
     }
 
@@ -58,10 +64,10 @@ public class NLBIService {
         sb.append("\n=== ORDERS ===\n");
         sb.append("Total orders: ").append(orders.size()).append("\n");
         Map<String, Long> ordersByStatus = orders.stream()
-    .collect(Collectors.groupingBy(
-        o -> o.getStatus() != null ? o.getStatus().name() : "UNKNOWN",
-        Collectors.counting()
-    ));
+            .collect(Collectors.groupingBy(
+                o -> o.getStatus() != null ? o.getStatus().name() : "UNKNOWN",
+                Collectors.counting()
+            ));
         ordersByStatus.forEach((status, count) ->
             sb.append(status).append(": ").append(count).append(" orders\n"));
 
@@ -72,7 +78,7 @@ public class NLBIService {
         }
 
         sb.append("\n=== AI DECISIONS ===\n");
-        long pending = aiLogs.stream().filter(l -> "PENDING".equals(l.getDecisionStatus())).count();
+        long pending  = aiLogs.stream().filter(l -> "PENDING".equals(l.getDecisionStatus())).count();
         long approved = aiLogs.stream().filter(l -> "APPROVED".equals(l.getDecisionStatus())).count();
         long rejected = aiLogs.stream().filter(l -> "REJECTED".equals(l.getDecisionStatus())).count();
         sb.append(String.format("Total AI recommendations: %d | Approved: %d | Rejected: %d | Pending: %d\n",
@@ -82,19 +88,26 @@ public class NLBIService {
     }
 
     private String askGemini(String question, String context) {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + geminiApiKey;
+String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=" + geminiApiKey;        String prompt = """
+    You are the CogniStock Intelligence Engine — an internal business-analytics assistant embedded in a retail inventory platform.
 
-        String prompt = """
-            You are CogniStock AI, a business intelligence assistant for an inventory management system.
-            Answer the user's question using ONLY the data provided below.
-            Be concise, specific, and use numbers from the data.
-            Respond in the same language the user used (Hindi or English).
-            Do not make up data. If the answer is not in the data, say so.
-            
-            === LIVE BUSINESS DATA ===
-            """ + context + """
-            
-            User question: """ + question;
+    STYLE RULES (follow strictly, every response):
+    - Never use greetings or filler like "How can I assist you today?" or "I am CogniStock AI." Just answer.
+    - Lead with the direct answer in the first sentence. Add supporting detail only if useful.
+    - Never apologize or ask the user to rephrase. If data is missing, state that plainly in one line.
+    - Do not use emoji, headings (#, ##, ###), or horizontal dividers (---).
+    - You may use **bold** for key numbers/names and "-" bullet lists.
+    - Keep bullet lines short and fact-dense, e.g. "- **Bluetooth Speaker** (SKU-1042): 1 unit, below threshold of 15."
+       - Match the language of the user's question (Hindi, Hinglish, or English), but keep the same structural style regardless of language.
+    - Sound like a precise internal analyst reporting to a manager, not a customer-support chatbot.
+    - If the user's message is a short acknowledgment or greeting (e.g. "ok", "thanks", "cool", "hi") rather than an actual question, reply briefly and naturally (e.g. "Let me know if you need anything else.") — do NOT say a query wasn't provided.
+
+    Answer ONLY using the live data below. Never invent numbers. If the answer isn't in the data, say so in one line.
+
+    === LIVE BUSINESS DATA ===
+    """ + context + """
+
+    User question: """ + question;
 
         Map<String, Object> requestBody = Map.of(
             "contents", List.of(
@@ -107,16 +120,30 @@ public class NLBIService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         try {
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
-            Map body = response.getBody();
-            List candidates = (List) body.get("candidates");
-            Map candidate = (Map) candidates.get(0);
-            Map content = (Map) candidate.get("content");
-            List parts = (List) content.get("parts");
-            Map part = (Map) parts.get(0);
-            return (String) part.get("text");
-        } catch (Exception e) {
-            return "Unable to process your question right now. Please try again.";
-        }
+    ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+    Map body = response.getBody();
+    if (body == null) {
+        log.error("Gemini API returned null body");
+        return "Unable to process your question right now. Please try again.";
     }
+    if (body.containsKey("error")) {
+        Map<?, ?> error = (Map<?, ?>) body.get("error");
+        log.error("Gemini API error: code={} message={}", error.get("code"), error.get("message"));
+        return "Unable to process your question right now. Please try again.";
+    }
+    List candidates = (List) body.get("candidates");
+    Map candidate = (Map) candidates.get(0);
+    Map content = (Map) candidate.get("content");
+    List parts = (List) content.get("parts");
+    Map part = (Map) parts.get(0);
+    return (String) part.get("text");
+} catch (HttpClientErrorException | HttpServerErrorException e) {
+    log.error("Gemini HTTP error: {} | body: {}", e.getStatusCode(), e.getResponseBodyAsString());
+    return "Unable to process your question right now. Please try again.";
+} catch (Exception e) {
+    log.error("Gemini API call failed: {}", e.getMessage(), e);
+    return "Unable to process your question right now. Please try again.";
+}
+    }
+    
 }
