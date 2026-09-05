@@ -201,9 +201,15 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-[#9CA3AF] text-xs mt-8">
-            CogniStock · AI Inventory Intelligence
-          </p>
+          <p className="text-center text-sm text-[#6B7280] mt-6">
+  Don't have an account?{" "}
+  <a href="/register" className="text-[#2563EB] font-medium hover:underline">
+    Create one
+  </a>
+</p>
+<p className="text-center text-[#9CA3AF] text-xs mt-2">
+  CogniStock · AI Inventory Intelligence
+</p>
         </div>
       </div>
     </div>
